@@ -1,76 +1,47 @@
 import F42Base from '/f42/classes/F42Base.class';
-import MessageStack from '/f42/classes/MessageStack.class';
-import F42PortHandler, {F42PortHandle} from "/f42/classes/F42PortHandler.class";
-import { timestampAsBase62Str } from '/f42/utility/utility-functions';
-import * as f42PDef from "/f42/hack-man/cfg/port-defs";
+import MessageQueue from '../../classes/MsgQueue.class';
 import TargetServer from '/f42/hack-man/classes/TargetServer.class';
-import { ReceivedMessageException } from '/f42/hack-man/classes/MsgException.class';
+import * as f42PDef from "/f42/hack-man/cfg/port-defs";
 import F42Logger from "/f42/classes/f42-logger-class";
+import { HMCtrlMsg, HMCtrlMsg_ADD_TS, HMCtrlMsg_RM_TS, HMCtrlMsg_CLEAR_ACTIONS } from './HMCtrlMsg.class';
+import { HMTgtSrvListMsg } from '/f42/hack-man/classes/HMTgtSrvListMsg.class';
+import { PORT_COMPLETED_JOBS } from '/f42/cfg/port-defs';
+import { ReceivedMessageException } from '/f42/hack-man/classes/MsgException.class';
+import { timestampAsBase62Str } from '/f42/utility/utility-functions';
 import { Server } from '@ns';
-import { MsgObjInterface } from '/f42/cfg/port-defs';
-import { HMCtrlMsg_ADD_TS } from '/f42/hack-man/cfg/hack-man-msgs';
 
 // see for details HackManager.init
-const F42_HMO_META_V = 4;
-const F42_HMO_SRV_V = 4;
-
-const F42_SRV_COMP_FILE_PATH = "/f42/utility/compromise-server.ts";
+const HMO_META_V = 4;
+const HMO_SRV_V = 4;
 
 export default class HackManager extends F42Base {
-  #tgtSrvsCpyPortKey = f42PDef.F42_RES_PORTS[f42PDef.F42_PORT_HMO_COPY].accessKey;
   #meta;
   #tgtList;
   #shouldKill = false; // used for dev/testing/debug
-  #portHandler;
   #stateViewHandle;
-  #targetListHandle;
 
   /**
-   * Push target server to message stack to trigger HackManager
+   * @deprecated Use HMCtrlMsg_ADD_TS.staticPush() directly
    */
   static addTargetServer(ns: NS, hostname: string): boolean {
-    // validate host
-    if (!ns.serverExists(hostname)) {
-      throw new Error(ns.sprintf("!! Invalid target server hostname: %s", hostname));
-    }
-
-    if (!ns.hasRootAccess(hostname)) {
-      // no root access, send to compromiser script, which will post back if it is successful
-      ns.run(F42_SRV_COMP_FILE_PATH, 1, hostname, true);
-      return false;
-    }
-
-    // get server object and push to port
-    const srvObj = ns.getServer(hostname);
-
-    // post to stack
-    return MessageStack.pushMessage(ns, new HMCtrlMsg_ADD_TS(srvObj), msgObj);
+    // post to queue
+    return HMCtrlMsg_ADD_TS.staticPush(ns, hostname);
   }
 
   /**
-   * Push target server to message stack to trigger HackManager
+   * @deprecated Use HMCtrlMsg_RM_TS.staticPush() directly
    */
   static removeTargetServer(ns: NS, hostname: string): boolean {
-    // validate host
-    if (!ns.serverExists(hostname)) {
-      throw new Error(ns.sprintf("!! Invalid target server hostname: %s", hostname));
-    }
-
-    // post to stack
-    return MessageStack.pushMessage(ns, f42PDef.F42_MSG_STACK_HM_CTRL, {
-      action: F42_MSG_ACT_RM_TS,
-      payload: hostname,
-      timestamp: timestampAsBase62Str()
-    });
+    // post to queue
+    return HMCtrlMsg_RM_TS.staticPush(ns, hostname);
   }
 
+  /**
+   * @deprecated Use HMCtrlMsg_CLEAR_ACTIONS.staticPush() directly
+   */
   static clearActions(ns: NS): boolean {
-    // post to stack
-    return MessageStack.pushMessage(ns, f42PDef.F42_MSG_STACK_HM_CTRL, {
-      action: F42_MSG_ACT_CLEAR_ACTIONS,
-      payload: true,
-      timestamp: timestampAsBase62Str()
-    });
+    // post to queue
+    return HMCtrlMsg_CLEAR_ACTIONS.staticPush(ns);
   }
 
   static factory(logger: F42Logger): HackManager {
@@ -86,7 +57,7 @@ export default class HackManager extends F42Base {
     // set logging restrictions
     // this.allowedLogFunctions = [];
     this.allowedLogFunctions = [
-      // "chkCtrlMsgStack",
+      // "chkCtrlMsgQueue",
       // "dqReceivedMessages",
       "addTgtSrv",
     ];
@@ -103,8 +74,8 @@ export default class HackManager extends F42Base {
    */
   #init(): void {
     this.#meta = {
-      ver: F42_HMO_META_V,  // see desc
-      sVer: F42_HMO_SRV_V,  // see desc
+      ver: HMO_META_V,  // see desc
+      sVer: HMO_SRV_V,  // see desc
       id: "pending",        // see desc
       initTs: Date.now(),
     };
@@ -149,8 +120,8 @@ export default class HackManager extends F42Base {
   mainLoop(): void {
     const lo = this.getLo("mainLoop", "START %s >>>>>>>>>>>>>>>>", timestampAsBase62Str());
 
-    // check target server message stack
-    this.#chkCtrlMsgStack();
+    // check target server message queue
+    this.#chkCtrlMsgQueue();
 
     // parse target servers
     // generate new actions / process running ones
@@ -166,26 +137,28 @@ export default class HackManager extends F42Base {
   }
 
   /**
-   * Dequeue messages on stack
+   * Dequeue messages
    */
-  #chkCtrlMsgStack(): void {
+  #chkCtrlMsgQueue(): void {
+    throw new Error("HackManager.chkCtrlMsgQueue(): THIS ACTION NEEDS REVIEW!!");
+
     let tsMsg;
 
     while (tsMsg !== false) {
-      tsMsg = MessageStack.popMessage(this.ns, f42PDef.F42_MSG_STACK_HM_CTRL);
+      tsMsg = MessageQueue.popMessage(this.ns, HMCtrlMsg.portId);
 
       if (tsMsg !== false) {
-        const lo = this.getLo("chkCtrlMsgStack: tsMsg: %s", JSON.stringify(tsMsg));
+        const lo = this.getLo("chkCtrlMsgQueue: tsMsg: %s", JSON.stringify(tsMsg));
 
         switch (tsMsg.action) {
-          case F42_MSG_ACT_ADD_TS:
+          case HMCtrlMsg.ACT_ADD_TS:
             lo.g("Add target server: %s", tsMsg.payload.hostname);
-            // add
+            // add ts
             this.#addTgtSrv(tsMsg.payload);
             break;
-          case F42_MSG_ACT_RM_TS:
+          case HMCtrlMsg.ACT_RM_TS:
             lo.g("Delete target server: %s", tsMsg.payload);
-
+            
             if (!(tsMsg.payload in this.#tgtList)) {
               lo.g("Server not a target: %s", tsMsg.payload);
             }
@@ -194,16 +167,16 @@ export default class HackManager extends F42Base {
               delete this.#deleteTgtSrv(tsMsg.payload);
             }
             break;
-          case F42_MSG_ACT_CLEAR_ACTIONS:
+          case HMCtrlMsg.ACT_CLEAR_ACTIONS:
             lo.g("Clear actions - DISABLED");
             // this.#clearActions();
             break;
-          case F42_MSG_ACT_ORDER_66:
+          case HMCtrlMsg.ACT_ORDER_66:
             lo.g("Order 66 - NOT IMPLEMENTED");
             // todo: NOT IMPLEMENTED
             break;
           default:
-            throw new Error("!! F42HackManager.chkCtrlMsgStack: Unknown message action: " + tsMsg.action);
+            throw new Error("!! F42HackManager.chkCtrlMsgQueue: Unknown message action: " + tsMsg.action);
             break;
         }
       }
@@ -241,9 +214,9 @@ export default class HackManager extends F42Base {
     let messageMatchCnt = 0;
 
     for (i = 0; i < maxMsgDq; i++) {
-      const rcvdMsg = MessageStack.popMessage(this.ns, f42PDef.F42_MSG_STACK_COMPLETED_JOBS);
+      const rcvdMsg = MessageQueue.popMessage(this.ns, PORT_COMPLETED_JOBS);
 
-      // stack empty
+      // queue empty
       if (!rcvdMsg) {
         lo.g("EMPTY_MSG_QUEUE: BREAK");
         break;
@@ -255,7 +228,7 @@ export default class HackManager extends F42Base {
         lo.g("Dropping invalid message: %s", rcvdMsg.msgId);
         continue;
       }
-
+      
       // see if message is valid for this HackManager run
       if (rcvdMsg.metaId != this.#meta.id) {
         // not valid or not matching; drop message and continue
@@ -377,15 +350,6 @@ export default class HackManager extends F42Base {
   // port view / cfg stuffs
   ///////////////////////
 
-  get portHandler(): F42PortHandler {
-    this.getLo("get-portHandler");
-    if (!this.#portHandler) {
-      this.#portHandler = new F42PortHandler(this.ns, this.logger);
-    }
-
-    return this.#portHandler;
-  }
-
   get stateViewHandle(): F42PortHandle {
     this.getLo("get-updateStateView");
     if (!this.#stateViewHandle) {
@@ -399,19 +363,6 @@ export default class HackManager extends F42Base {
     return this.#stateViewHandle;
   }
 
-  get targetListHandle(): F42PortHandle {
-    this.getLo("get-targetListHandle");
-    if (!this.#targetListHandle) {
-      this.#targetListHandle = this.portHandler.getPortHandle(
-        f42PDef.F42_HM_TARGETS.id,
-        false,
-        f42PDef.F42_HM_TARGETS.key
-      );
-    }
-
-    return this.#targetListHandle;
-  }
-
   #updateStateView(): void {
     this.getLo("updateStateView");
     this.stateViewHandle.clear();
@@ -420,8 +371,7 @@ export default class HackManager extends F42Base {
 
   #postTargetList(): void {
     this.getLo("postTargetList");
-    this.targetListHandle.clear();
-    this.targetListHandle.write(Object.keys(this.#tgtList));
+    HMTgtSrvListMsg.staticPush(this.ns, Object.keys(this.#tgtList));
   }
 
   ////////////////////////
