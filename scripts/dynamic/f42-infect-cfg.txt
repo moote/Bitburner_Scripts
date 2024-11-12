@@ -1,0 +1,13 @@
+{
+  "status": 0,
+  "target": "neo-net",
+  "hackScriptPath": "/scripts/dynamic/f42-hack-payload.js",
+  "hackScriptExeRam": 0,
+  "moneyMinLimitMult": 0.8,
+  "securityMaxLimitMult": 0.2,
+  "timestamp": 0,
+  "psMan": {
+    "ramTargetGb": 4,
+    "debugMode": false
+  } 
+}

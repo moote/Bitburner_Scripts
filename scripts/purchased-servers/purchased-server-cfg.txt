@@ -1,0 +1,3 @@
+{
+    "ramTargetGb": 1024
+}

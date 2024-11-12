@@ -1,0 +1,11 @@
+{
+  "pid": 562,
+  "totalRam": 484.25,
+  "ver": 15,
+  "threads": 149,
+  "payload": [
+    "scripts/dynamic/f42-hack-payload.js",
+    "scripts/dynamic/f42-hack-cfg-class.js",
+    "scripts/utility/payload-fingerprint.js"
+  ]
+}

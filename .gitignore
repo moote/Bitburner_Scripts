@@ -1,0 +1,10 @@
+
+.DS_Store
+
+scripts/cfg/hack-manager-bup-v3.json.txt
+
+scripts/cfg/hack-manager-bup.json.txt
+
+scripts/cfg/target-servers.json.txt
+
+watcher.ts
