@@ -4,12 +4,12 @@ import { MsgObjInterface } from '/f42/cfg/port-defs';
 
 export default class MsgBase implements MsgObjInterface {
   #msgId: "base";
-  #msgPortId: 0;
+  #portId: 0;
   #msgPort: MsgQueue | MsgSocket = undefined;
 
-  constructor(msgId: string, msgPortId: number, msgPort: MsgPort){
+  constructor(msgId: string, portId: number, msgPort: MsgPort) {
     this.#msgId = msgId;
-    this.#msgPortId = msgPortId;
+    this.#portId = portId;
     this.#msgPort = msgPort;
   }
 
@@ -18,7 +18,7 @@ export default class MsgBase implements MsgObjInterface {
   }
 
   get portId(): number { // req for MsgObjInterface
-    return this.#msgPortId;
+    return this.#portId;
   }
 
   get msgPort(): MsgPort { // req for MsgObjInterface
@@ -31,6 +31,26 @@ export default class MsgBase implements MsgObjInterface {
    * @returns Result of push
    */
   push(): boolean {
-    return this.#msgPort.pushMessage(this);
+    return this.#msgPort.pushMessage(this.serialize());
+  }
+
+  serialize(): MsgObjInterface{
+    return {
+      msgId: this.#msgId,
+      portId: this.#portId,
+    };
+  }
+
+  hydrate(rawObj: MsgObjInterface): void{
+    if(
+      typeof rawObj.msgId === "undefined"
+      || typeof rawObj.portId === "undefined"
+    ){
+      throw new Error("MsgBase.unserialize: Invalid data: " + JSON.stringify(rawObj, null, 2));
+    }
+    else{
+      this.#msgId = rawObj.msgId;
+      this.#portId = rawObj.portId;
+    }
   }
 }

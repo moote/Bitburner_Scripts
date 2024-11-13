@@ -1,10 +1,5 @@
 import ThrallControl from "/f42/thrall/classes/ThrallControl.class";
 
-const JOB_FLAG = "-THRALL-job";
-const COMP_FLAG = "-THRALL-comp";
-export const RUNNING_JOB_PATH = "scripts/dynamic/v3/thrall/tmp/%d" + JOB_FLAG + ".txt";
-export const COMPLETED_JOB_PATH = "scripts/dynamic/v3/thrall/tmp/%d" + COMP_FLAG + ".txt";
-
 const RUN_AS_LAUNCHER = "launch";
 const RUN_AS_ALL = "a";
 const RUN_AS_REC = "r";

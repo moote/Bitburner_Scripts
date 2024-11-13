@@ -18,6 +18,8 @@ export default class F42Logger {
   #toTerminal = true // true: output to terminal (ns.tprintf), else log with ns.printf
   #doTail = false // true: auto open tail, false no tail; can only be true if this.#toTerminal == false
   #tailTitle = false; // title of the tail window (if using it); false then will default to title, otherwise set a string
+  #tailWidth = 0;
+  #tailHeight = 0;
 
   constructor(ns: NS, writeLog = false, toTerminal = true, doTail = false, tailTitle = false, disableSystemLog = false) {
     this.#ns = ns;
@@ -100,6 +102,16 @@ export default class F42Logger {
     this.ns.closeTail();
   }
 
+  setTailSize(w: number, h: number): void {
+    this.#tailWidth = w;
+    this.#tailHeight = h;
+
+    // first call already happened so need to manually set here
+    if(!this.#firstCall){
+      this.ns.resizeTail(this.#tailWidth, this.#tailHeight);
+    }
+  }
+
   /**
    * Init and return the feebback object
    * 
@@ -134,6 +146,10 @@ export default class F42Logger {
     if (this.#firstCall) {
       if (this.#doTail) {
         this.#ns.tail();
+
+        if (this.#tailWidth) {
+          this.#ns.resizeTail(this.#tailWidth, this.#tailHeight);
+        }
       }
 
       this.#firstCall = false;

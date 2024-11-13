@@ -6,6 +6,7 @@ import HackAction from "/f42/hack-man/classes/ActionHack.class";
 import { MsgErrorInvalidActionType } from "/f42/hack-man/classes/MsgException.class";
 import { Server } from "@ns";
 import F42Logger from "/f42/classes/f42-logger-class";
+import { JobStateInterface, TSrvStateInterface } from "/f42/hack-man/classes/HMStateMsg.class";
 
 // server statuses
 export const STATUS_NEW = "new";
@@ -13,30 +14,6 @@ export const STATUS_ACTIVE = "active";
 export const STATUS_PAUSED = "paused";
 export const STATUS_REANAL = "reananlyse";
 export const STATUS_REMOVE = "remove";
-
-export interface StatsTSrvInterface {
-  initTs: 0,
-  totalHacked: 0,
-  totalGrown: 0,
-  totalWeakened: 0,
-  completedJobs: 0,
-  activeJob: StatsJobInterface,
-  raw: {
-    totalHacked: 0,
-    totalGrown: 0,
-    totalWeakened: 0,
-  }
-}
-
-export interface StatsJobInterface {
-  type: string,
-  estAmt: 0,
-  estTime: 0,
-  startTime: 0,
-  msgSent: 0,
-  msgRcvd: 0,
-  amt: 0
-}
 
 /**
  * @param {string} testStatus
@@ -71,9 +48,6 @@ export default class TargetServer extends F42Base {
   constructor(logger: F42Logger, hostname: string, metaId: string) {
     super(logger);
     this.#doInitAll(hostname, metaId);
-    if (serialObj) {
-      this.unserialize(serialObj);
-    }
 
     this.allowedLogFunctions = [
       // "checkReceivedMsg",
@@ -119,7 +93,7 @@ export default class TargetServer extends F42Base {
    * @throws {Error} Throws error on invalid hostname, or no root access on server
    */
   set #initHostname(hostname: string) {
-    const fnN = "initHostname";
+    // const fnN = "initHostname";
     this.#testInit();
 
     // validate hostname
@@ -134,7 +108,7 @@ export default class TargetServer extends F42Base {
 
     // set hostname
     this.#hostname = hostname;
-    this.log(fnN, "hostname: %s", hostname);
+    // this.log(fnN, "hostname: %s", hostname);
 
     // get Server object & save
     this.updateSrvObj();
@@ -151,6 +125,10 @@ export default class TargetServer extends F42Base {
   // stats
   // ////////////////
 
+  get stats(): TSrvStateInterface {
+    return this.#stats;
+  }
+
   #initStats(): void {
     this.#testInit();
     this.#stats = {
@@ -160,15 +138,24 @@ export default class TargetServer extends F42Base {
       totalWeakened: 0,
       completedJobs: 0,
       activeJob: this.#newStatActiveJob(),
+      jobsStoredCnt: 0,
       raw: {
         totalHacked: 0,
         totalGrown: 0,
         totalWeakened: 0,
-      }
+      },
     };
   }
 
-  #newStatActiveJob(type = "", estAmt = "", estTime = 0, startTime = 0): StatsJobInterface {
+  /**
+   * 
+   * @param type 
+   * @param estAmt 
+   * @param estTime 
+   * @param startTime 
+   * @returns A new JobStateInterface
+   */
+  #newStatActiveJob(type = "", estAmt = "", estTime = 0, startTime = 0): JobStateInterface {
     return {
       type,
       estAmt,
@@ -223,6 +210,14 @@ export default class TargetServer extends F42Base {
         this.#stats.totalHacked = this.ns.formatNumber(this.#stats.raw.totalHacked);
         break;
     }
+
+    let jobsStoredCnt = 0;
+
+    for(const key in this.#actions){
+      jobsStoredCnt += this.#actions[key].jobListCnt;
+    }
+
+    this.#stats.jobsStoredCnt = jobsStoredCnt;
   }
 
   /**

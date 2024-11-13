@@ -1,14 +1,30 @@
 import MsgBase from "/f42/classes/MsgBase.class";
 import MsgSocket from "/f42/classes/MsgSocket.class";
 import { PORT_HM_TARGETS } from "/f42/cfg/port-defs";
+import { timestampAsBase62Str } from "/f42/utility/utility-functions";
+
+interface HMTgtSrvListMsg_Interface {
+  targets: string[],
+}
 
 /**
  * TargetServer list socket message for HackManager
  */
-export class HMTgtSrvListMsg extends MsgBase {
+export class HMTgtSrvListMsg extends MsgBase implements HMTgtSrvListMsg_Interface {
   static portId: number = PORT_HM_TARGETS;
 
   #targets: string[];
+
+  static preHydrate(ns: NS, rawObj: HMCtrlMsg_Interface): HMTgtSrvListMsg | boolean {
+    if (!rawObj) {
+      return false;
+    }
+
+    // do hydration & return
+    const newMsg = new HMTgtSrvListMsg(ns, []);
+    newMsg.hydrate(rawObj);
+    return newMsg;
+  }
 
   /**
    * Factory helper function for push
@@ -36,10 +52,32 @@ export class HMTgtSrvListMsg extends MsgBase {
    * Override MsgBase so exact type can be declared
    */
   get msgPort(): MsgSocket {
-    return this.#msgPort();
+    return super.msgPort;
   }
 
   get targets(): string {
     return this.#targets;
+  }
+
+  serialize(): HMTgtSrvListMsg_Interface {
+    // return data including any inherited
+    return {
+      ...super.serialize(),
+      targets: this.#targets,
+    };
+  }
+
+  hydrate(rawObj: HMTgtSrvListMsg_Interface): HMTgtSrvListMsg {
+    if (
+      typeof rawObj.targets === "undefined"
+    ) {
+      throw new Error("HMTgtSrvListMsg.hydrate: Invalid data: " + JSON.stringify(rawObj, null, 2));
+    }
+    else {
+      this.#targets = rawObj.targets;
+    }
+
+    // pass down for remainder of fields processing
+    super.hydrate(rawObj);
   }
 }

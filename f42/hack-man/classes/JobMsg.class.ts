@@ -1,10 +1,9 @@
 import F42Base from '/f42/classes/F42Base.class';
 import ActionJob from '/f42/hack-man/classes/ActionJob.class';
 import TargetServer from '/f42/hack-man/classes/TargetServer.class';
-
-import F42MessageStack from '/scripts/classes/f42-message-stack-class.js';
-import { timestampAsBase62Str } from "/scripts/utility/utility-functions.js";
-import { F42_MSG_STACK_POSTED_JOBS } from "/scripts/cfg/port-defs.js";
+import HMJobMsg, { HMJobMsgResult_Interface } from '/f42/hack-man/classes/HMJobMsg.class';
+import { timestampAsBase62Str } from '/f42/utility/utility-functions';
+import { PORT_POSTED_JOBS } from '/f42/cfg/port-defs';
 
 export const MSG_STATUS_PRE_INIT = "pre-init";
 export const MSG_STATUS_INIT = "init";
@@ -17,36 +16,6 @@ export const MSG_STATUS_CANCEL = "cancel";
 
 const DEBUG_NO_SEND = false;
 
-class MsgSendObj implements MsgSendInterface {
-  target: string;
-  actionType: string;
-  metaId: string;
-  jobId: string;
-  msgId: string;
-  batchNum: number;
-  threads: number;
-  isAccepted: boolean;
-  isReturned: boolean;
-  msgAcceptedTs: number;
-  msgReturnedTs: number;
-  result: MsgResultInterface;
-}
-
-interface MsgSendInterface {
-  target: string;
-  actionType: string;
-  metaId: string;
-  jobId: string;
-  msgId: string;
-  batchNum: number;
-  threads: number;
-  isAccepted: boolean;
-  isReturned: boolean;
-  msgAcceptedTs: number;
-  msgReturnedTs: number;
-  result: MsgResultInterface;
-}
-
 interface MsgInterface {
   ver: number;
   status: string;
@@ -55,6 +24,7 @@ interface MsgInterface {
   metaId: string;
   jobId: string;
   msgId: string;
+  portId: number;
 
   isInit: boolean;
   isSent: boolean;
@@ -77,17 +47,7 @@ interface MsgInterface {
   totThreads: number;
   estAmt: number;
   estTime: number;
-  result: MsgResultInterface;
-}
-
-interface MsgResultInterface {
-  pid: number;
-  actionedBy: string;
-  startTs: number;
-  endTs: number;
-  startAmt: number;
-  endAmt: number;
-  amt: number;
+  result: HMJobMsgResult_Interface;
 }
 
 export default class JobMessage extends F42Base {
@@ -105,6 +65,7 @@ export default class JobMessage extends F42Base {
       // "unsetStatusSent",
       // "postMsg",
       // "processReceivedMessage"
+      // "sendResult",
     ];
   }
 
@@ -116,6 +77,11 @@ export default class JobMessage extends F42Base {
     this.#msg.metaId = this.#actionJob.metaId;
     this.#msg.jobId = this.#actionJob.id;
     this.#msg.isInit = true;
+    this.#msg.isAccepted = false;
+    this.#msg.isReturned = false;
+    this.#msg.msgAcceptedTs = 0;
+    this.#msg.msgReturnedTs = 0;
+    this.#msg.portId = PORT_POSTED_JOBS;
     this.#doneInit = true;
   }
 
@@ -139,6 +105,16 @@ export default class JobMessage extends F42Base {
 
   #initId(): void {
     this.#testInit();
+    this.#msg = {};
+    this.#msg.result = {
+      pid: 0,
+      actionedBy: "",
+      startTs: 0,
+      endTs: 0,
+      startAmt: 0,
+      endAmt: 0,
+      amt: 0,
+    };
     this.#msg.msgId = "msgId_" + timestampAsBase62Str(Math.random());
   }
 
@@ -172,16 +148,18 @@ export default class JobMessage extends F42Base {
     return this.#msg;
   }
 
-  get msgToSend(): MsgSendObj {
-    const msgToSend = new MsgSendObj();
-    for (const key of this.msg) {
-      msgToSend[key] = this.msg[key];
-    }
+  get msgToSend(): HMJobMsg {
+    // const lo = this.getLo("msgToSend");
+    const msgToSend = new HMJobMsg(this.ns, this.id);
+    msgToSend.hydrate(this.#msg);
+
+    // lo.g("HMJobMsg >> %s", JSON.stringify(msgToSend.serialize(), null, 2));
+
     return msgToSend;
   }
 
   postMsg(): boolean {
-    const lo = this.getLo("postMsg");
+    // const lo = this.getLo("postMsg");
 
     // this.ns.tprintf(this.tgtSrv.serialize(true));
     // this.log(fnN, "this.tgtSrv: %s", this.tgtSrv);
@@ -194,22 +172,24 @@ export default class JobMessage extends F42Base {
 
     // try to send
     if (DEBUG_NO_SEND) {
-      lo.g("DEBUG_NO_SEND");
+      // lo.g("DEBUG_NO_SEND");
       sendResult = false;
     }
     else {
-      sendResult = F42MessageStack.pushMessage(
-        super.ns,
-        F42_MSG_STACK_POSTED_JOBS,
-        this.msgToSend
-      );
+      // sendResult = F42MessageStack.pushMessage(
+      //   super.ns,
+      //   F42_MSG_STACK_POSTED_JOBS,
+      //   this.msgToSend
+      // );
+
+      sendResult = this.msgToSend.push();
     }
 
-    lo.g("sendResult: %s", sendResult);
+    // lo.g("sendResult: %s", sendResult);
 
     // change msg status if sent
     if (!sendResult) {
-      lo.g("call >> this.unsetStatusSent()");
+      // lo.g("call >> this.unsetStatusSent()");
       this.unsetStatusSent();
     }
 

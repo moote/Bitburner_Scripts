@@ -66,9 +66,6 @@ export default class ActionBase extends F42Base {
   constructor(tgtSrv: TargetServer, type: string) {
     super(tgtSrv.logger);
     this.#doInitAll(tgtSrv, type);
-    if(serialObj){
-      this.unserialize(serialObj);
-    }
     
     this.allowedLogFunctions = [
       // "setStatusNoJob",
@@ -196,6 +193,9 @@ export default class ActionBase extends F42Base {
         lo.g("Cancel currJob: %s", this.#currJobId);
         this.currJob.setStatusCancel();
       }
+
+      // clear job list
+      this.#jobs = {};
     }
     else {
       // no current job, do nothing
@@ -282,8 +282,18 @@ export default class ActionBase extends F42Base {
     return this.#jobs[jobId];
   }
 
+  /**
+   * A counter of jobs run
+   */
   get jobCount(): number {
     return this.#jobCnt;
+  }
+
+  /**
+   * The number of jobs stored in this.#jobs
+   */
+  get jobListCnt(): number {
+    return Object.keys(this.#jobs).length;
   }
 
   // jobs
@@ -296,7 +306,7 @@ export default class ActionBase extends F42Base {
    * @returns {boolean}
    */
   checkTargetNeedsAction(): boolean {
-    const lo = this.getLo("checkTargetNeedsAction");
+    // const lo = this.getLo("checkTargetNeedsAction");
 
     // make sure to always trigger logic when job is active
     // to stop next action triggering before this action has
@@ -304,11 +314,11 @@ export default class ActionBase extends F42Base {
     if (this.hasActiveJob || this.shouldTriggerAction()) {
       // run action logic
       this.actionDecisionLogic();
-      lo.g("TRUE");
+      // lo.g("TRUE");
       return true;
     }
     else {
-      lo.g("FALSE");
+      // lo.g("FALSE");
       return false;
     }
   }
@@ -317,34 +327,34 @@ export default class ActionBase extends F42Base {
    * @returns {boolean}
    */
   actionDecisionLogic(): void {
-    const lo = this.getLo("actionDecisionLogic");
+    // const lo = this.getLo("actionDecisionLogic");
 
     if (this.status === ACT_STATUS_NO_JOB) {
-      lo.g("ACT_STATUS_NO_JOB");
+      // lo.g("ACT_STATUS_NO_JOB");
       this.targetAnalyse();
     }
     else if (this.currJob.isStatusInit) {
-      lo.g("getIsStatusInit");
+      // lo.g("getIsStatusInit");
       // should not encounter this; must be a crash recovery
       this.setStatusNoJob();
     }
     else if (this.currJob.isStatusSending) {
-      lo.g("getIsStatusSending: this.#currJobId: %s", this.#currJobId);
-      lo.g("getIsStatusSending: this.#currJob: %j", this.currJob);
+      // lo.g("getIsStatusSending: this.#currJobId: %s", this.#currJobId);
+      // lo.g("getIsStatusSending: this.#currJob: %j", this.currJob);
       // send messages
       this.currJob.sendMessages();
     }
     else if (this.currJob.isStatusProcessing) {
-      lo.g("getIsStatusProcessing");
+      // lo.g("getIsStatusProcessing");
       // receiving messages, do nothing
     }
     else if (this.currJob.isStatusCompleted) {
-      lo.g("getIsStatusCompleted");
+      // lo.g("getIsStatusCompleted");
       // change to no job status
       this.setStatusNoJob();
     }
     else if (this.currJob.isStatusCancelled) {
-      lo.g("getIsStatusCancelled");
+      // lo.g("getIsStatusCancelled");
       // change to no job status
       this.setStatusNoJob();
     }

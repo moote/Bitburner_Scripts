@@ -1,5 +1,5 @@
 import MsgPort from "./MsgPort.class";
-import { MSG_QUEUES } from "/f42/cfg/port-defs";
+import { MSG_QUEUES, PORT_TYPE_QUEUE } from "/f42/cfg/port-defs";
 
 /**
  * Controls comms with ports defined as queues
@@ -7,6 +7,11 @@ import { MSG_QUEUES } from "/f42/cfg/port-defs";
 export default class MsgQueue extends MsgPort {
   constructor(ns: NS){
     super(ns);
+    this
+  }
+
+  get portType(): string {
+    return PORT_TYPE_QUEUE;
   }
 
   /**

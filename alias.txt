@@ -15,7 +15,7 @@ alias srv-comp="run /f42/utility/compromise-server.js";
 
 alias test-hack="run /scripts/dynamic/v2/hack-test.js";
 alias route="run /scripts/fab42-route-to-srv.js";
-alias peek-msg="run /scripts/dynamic/v2/peek-msg-stack.js";
+
 alias llv3="ls /scripts/dynamic/v3 -l";
 alias v3-test="run /scripts/dynamic/v3/v3-test.js";
 
@@ -23,7 +23,6 @@ alias hm-force-bup="run /scripts/dynamic/v2/add-target-server.js --force-bup";
 alias hm-reset="run /scripts/dynamic/v2/add-target-server.js --reset-hack-manager";
 alias hm-add-target="run /scripts/dynamic/v3/add-target-server.js";
 alias hm-clear-actions="run /scripts/dynamic/v2/add-target-server.js --clear-actions";
-alias hm-run="run /scripts/dynamic/v3/hack-manager.js";
 alias hm-state="run /scripts/dynamic/v3/hm-state.js";
 
 alias auto-target="run /scripts/dynamic/v3/auto-targeter.js";
@@ -38,3 +37,10 @@ alias dummy-thrall-control="run /f42/thrall/dummy.js";
 alias thrall-control="run /f42/thrall/control.js";
 alias thrall-propagate="run /f42/thrall/infector.js -p";
 alias thrall-infector-run="run /f42/thrall/infector.js";
+
+alias peek-queue="run /f42/utility/peek-msg-queue.js";
+alias peek-sckt="run /f42/utility/peek-msg-socket.js";
+alias hm-run="run /f42/hack-man/hack-manager.js";
+alias hm-add-target="run /f42/utility/add-target-server.js";
+alias auto-target="run /f42/utility/auto-targeter.js";
+alias hm-state="run /f42/utility/hm-state.js";

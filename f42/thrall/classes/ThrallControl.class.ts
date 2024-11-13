@@ -2,6 +2,11 @@ import { NS } from '@ns'
 import { RESULT_FLAG, JOB_RESULT_PATH } from "/f42/thrall/hack_";
 import { ThrallJob, ThrallJobAction, ThrallActionResult } from "./interfaces";
 
+export const JOB_FLAG = "-THRALL-job";
+export const COMP_FLAG = "-THRALL-comp";
+export const RUNNING_JOB_PATH = "f42/thrall/tmp/%d" + JOB_FLAG + ".txt";
+export const COMPLETED_JOB_PATH = "f42/thrall/tmp/%d" + COMP_FLAG + ".txt";
+
 export default class ThrallControl {
   ns: NS;
   logName: string;
@@ -10,9 +15,9 @@ export default class ThrallControl {
   hostname: string;
   ramHeadroom = 0;
 
-  weakenScriptPath = "/scripts/dynamic/v3/thrall/weaken_.js";
-  growScriptPath = "/scripts/dynamic/v3/thrall/grow_.js";
-  hackScriptPath = "/scripts/dynamic/v3/thrall/hack_.js";
+  weakenScriptPath = "f42/thrall/weaken_.js";
+  growScriptPath = "f42/thrall/grow_.js";
+  hackScriptPath = "f42/thrall/hack_.js";
 
   /**
    * 

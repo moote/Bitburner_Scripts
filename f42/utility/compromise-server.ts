@@ -1,4 +1,4 @@
-import HackManager from "/f42/hack-man/classes/HackManager.class";
+import { HMCtrlMsg_ADD_TS } from "/f42/hack-man/classes/HMCtrlMsg.class";
 
 /**
  * @param {NS} ns
@@ -68,7 +68,7 @@ export async function main(ns: NS): void {
 
     if (addAsTarget) {
       // add as target
-      HackManager.addTargetServer(ns, opVars.targetSeverHostname);
+      HMCtrlMsg_ADD_TS.staticPush(ns, opVars.targetSeverHostname);
       ns.tprintf("Added as target");
     }
 
@@ -121,7 +121,7 @@ export async function main(ns: NS): void {
       if (addAsTarget) {
         // add as target for PortHandler
         resultStr += (" | TARGET_ADDED");
-        HackManager.addTargetServer(ns, opVars.targetSeverHostname);
+        HMCtrlMsg_ADD_TS.staticPush(ns, opVars.targetSeverHostname);
       }
     }
     else {

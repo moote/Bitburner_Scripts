@@ -1,4 +1,4 @@
-import HackManager from '/f42/hack-man/classes/HackManager.class';
+import { HMCtrlMsg_ADD_TS } from '/f42/hack-man/classes/HMCtrlMsg.class';
 import F42Logger from '/f42/classes/f42-logger-class';
 import F42ClFlagDef from '/f42/classes/f42-cl-flag-def-class';
 
@@ -34,6 +34,6 @@ export async function main(ns: NS): void {
   //   HackManager.clearActions(ns);
   // }
   else {
-    HackManager.addTargetServer(ns, feedback.parsedClFlags.target);
+    HMCtrlMsg_ADD_TS.staticPush(ns, feedback.parsedClFlags.target);
   }
 }

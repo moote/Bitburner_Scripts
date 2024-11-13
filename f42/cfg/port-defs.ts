@@ -3,13 +3,14 @@ import MsgSocket from "/f42/classes/MsgSocket.class";
 
 /**
  * 
- * MessageQueue: can hold 0:n messages to a system limit, then they are pooped off
+ * MessageQueue: can hold 0:n messages to a system limit, then they are popped off
  * MessageSocket: can 0:1 messages, used for cfg, status, etc.
  * 
  */
 
-// export const PORT_TYPE_SOCKET = "socket";
-// export const PORT_TYPE_QUEUE = "queue";
+export const PORT_TYPE_BASE = "base";
+export const PORT_TYPE_SOCKET = "socket";
+export const PORT_TYPE_QUEUE = "queue";
 
 // 1
 // 2
@@ -74,5 +75,7 @@ export interface MsgObjInterface {
   portId: number;
   msgPort: MsgQueue | MsgSocket;
   push: () => boolean;
+  serialize: () => string;
+  hydrate: (dataObj: MsgObjInterface) => boolean;
 }
 

@@ -17,7 +17,6 @@ export default class F42Base {
   /**
    * 
    * @param logger Logging instance
-   * @param serialObj Serialized version of a class instance to unserialize with
    */
   constructor(logger: F42Logger) {
     this.#ns = logger.ns;
@@ -26,7 +25,7 @@ export default class F42Base {
 
     // this.allowedLogFunctions = ["ALL"];
     this.allowedLogFunctions = [];
-    this.onlyVerboseLogs = false;
+    this.onlyVerboseLogs = true;
     this.#logLinks = {};
   }
 
@@ -69,7 +68,11 @@ export default class F42Base {
       return functionName;
     }
 
-    if (this.allowedLogFunctions[0] != "ALL") {
+    if(!this.allowedLogFunctions){
+      return functionName;
+    }
+
+    if (this.allowedLogFunctions.length > 0 && this.allowedLogFunctions[0] != "ALL") {
       if (!this.allowedLogFunctions.includes(functionName)) {
         return functionName;
       }

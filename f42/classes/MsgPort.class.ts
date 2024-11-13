@@ -26,7 +26,7 @@ export default class MsgPort {
       throw new Error(this.ns.sprintf("!! Not a valid message stack port: %d", msgObj.portId));
     }
 
-    return MessagePort.doPushMessage(ns, msgObj);
+    return this._doPushMessage(msgObj);
   }
 
   _doPushMessage(msgObj: MsgObjInterface): boolean {
@@ -35,6 +35,8 @@ export default class MsgPort {
     if (!mqPortHandle) {
       throw new Error(this.ns.sprintf("!! Error getting port handle: %d", msgObj.portId));
     }
+
+    // this.ns.tprintf("MsgPort._doPushMessage: msgObj.msgId: %s", JSON.stringify(msgObj, null, 2));
 
     return mqPortHandle.tryWrite(msgObj);
   }
@@ -57,6 +59,8 @@ export default class MsgPort {
     }
 
     const popResult = mqPortHandle.read();
+
+    // this.ns.tprintf("MsgPort.popMessage: %s", JSON.stringify(popResult, null, 2));
 
     if (popResult === "NULL PORT DATA") {
       return false;

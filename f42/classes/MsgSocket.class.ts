@@ -1,5 +1,5 @@
 import MsgPort from "./MsgPort.class";
-import { MSG_SOCKETS } from "/f42/cfg/port-defs";
+import { MSG_SOCKETS, PORT_TYPE_SOCKET } from "/f42/cfg/port-defs";
 
 /**
  * Controls comms with ports defined as sockets
@@ -7,6 +7,10 @@ import { MSG_SOCKETS } from "/f42/cfg/port-defs";
 export default class MsgSocket extends MsgPort {
   constructor(ns: NS) {
     super(ns);
+  }
+
+  get portType(): string {
+    return PORT_TYPE_SOCKET;
   }
 
   /**
@@ -25,7 +29,7 @@ export default class MsgSocket extends MsgPort {
     this.ns.clearPort(msgObj.portId);
 
     // push message
-    this._doPushMessage(ns, msgObj);
+    this._doPushMessage(msgObj);
   }
 
   /**

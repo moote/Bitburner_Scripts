@@ -1,58 +1,97 @@
-import { ThrallControl } from "/f42/thrall/control";
+import { ThrallJob } from "/f42/thrall/classes/interfaces";
+import ThrallControl from "/f42/thrall/classes/ThrallControl.class";
 
 /** @param {NS} ns */
 export async function main(ns: NS): void {
   const dtc = new DummyThrallControl(ns);
 
+  ns.tail();
+
   while (true) {
     dtc.getPotentialJob();
-    dtc.checkCompletedJobs();
-    dtc.returnCompletedJobs();
-
     await ns.sleep(1000);
   }
 }
 
 class DummyThrallControl extends ThrallControl {
-  dummyPidCnt = 0;
-  dummyResultFileList = {};
-
   constructor(ns: NS) {
-    super(ns, "DUMMY-ThrallCtrl-V3");
+    super(ns, "DUMMY-ThrallCtrl-V4");
   }
 
   /**
-   * Always return true so we can fake
+   * Message dq and bounce back
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  checkCanRun(scriptRamUsage: number, reqThreads: number): boolean {
-    return true;
+  getPotentialJob(): void {
+    let fakeJob: ThrallJob;
+    let jobAction: ThrallJobAction;
+
+    // get job
+    try {
+      fakeJob = this.popMessage(this.newJobPort);
+    }
+    catch (e) {
+      fakeJob == false;
+    }
+
+    if (fakeJob !== false) {
+      // get job action data
+      jobAction = this.getJobAction(fakeJob);
+
+      if (jobAction != false) {
+        // if (this.checkCanRun(jobAction.ram, fakeJob.threads)) {
+        this.log("FAKE(%s): %s >> %s", fakeJob.msgId, fakeJob.target, fakeJob.actionType);
+
+        // add job to running list
+        fakeJob.msgAcceptedTs = Date.now();
+        fakeJob.isAccepted = true;
+        fakeJob.result.actionedBy = this.hostname;
+        fakeJob.result.startTs = fakeJob.msgAcceptedTs;
+        fakeJob.result.startAmt = jobAction.startAmt;
+
+        // fake results
+        this.#fakeResults(fakeJob);
+
+        // send back
+        let msgSent = false;
+
+        this.log("TRY_FAKE_SEND: %s", fakeJob.msgId);
+
+        // try send
+        try {
+          if (this.pushMessage(this.completedJobPort, fakeJob)) {
+            // set flag
+            msgSent = true;
+          }
+          else {
+            msgSent = false;
+          }
+        }
+        catch (e) {
+          msgSent = false;
+        }
+
+        if (msgSent) {
+          this.log("FAKE_MSG_SENT!");
+        }
+        else {
+          this.log("FAKE_MSG_NOT_SENT!");
+        }
+      }
+      else {
+        // job has invalid action type
+        this.log("!! Job has invalid type: %s", fakeJob.actionType);
+      }
+    }
+    else {
+      // this.log("FAKE_MSG_NOT_LOADED!");
+    }
   }
 
-  /**
-   * Override to fake job accept
-   */
-  runJob(potentialJob) {
-    // inc dummy pid
-    this.dummyPidCnt++;
-
-    // create result file
-    this.dummyResultFileList[this.dummyPidCnt] = {
-      type: potentialJob.actionType,
-      pid: this.dummyPidCnt,
-      endTs: Date.now(),
-      amt: potentialJob.estAmt,
-    };
-
-    // return pid
-    return this.dummyPidCnt;
-  }
-
-  /**
-   * Override to fake result file found
-   */
-  getActionResult(jobPid) {
-    // return dummy data
-    return this.dummyResultFileList[jobPid];
+  #fakeResults(fakeJob: ThrallJob) {
+    fakeJob.result.amt = 1;
+    fakeJob.result.endTs = Date.now();
+    fakeJob.result.endAmt = fakeJob.result.startAmt + 1;
+    fakeJob.msgReturnedTs = Date.now();
+    fakeJob.isReturned = true;
   }
 }

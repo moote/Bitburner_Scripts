@@ -1,16 +1,16 @@
 import F42Logger from "/f42/classes/f42-logger-class";
 // import F42ClFlagDef from "/scripts/classes/f42-cl-flag-def-class.js";
-import F42PortHandler, { F42PortHandle } from "/f42/classes/F42PortHandler.class";
-import { F42_HM_TARGETS } from "/f42/cfg/port-defs";
-import { timestampAsBase62Str, getActivityVisStr } from "/f42/utility/utility-functions";
+import { MsgSocketReader } from "/f42/classes/MsgSocketReader.class";
 import F42Feedback from "/f42/classes/f42-feedback-class";
 import HackManager from "/f42/hack-man/classes/HackManager.class";
+import { PORT_HM_TARGETS } from "/f42/cfg/port-defs";
+import { timestampAsBase62Str, getActivityVisStr } from "/f42/utility/utility-functions";
 
 const AT_IS_DEBUG = false;
 const AT_LEV_MULTI = 0.75;
 
 interface AT_OpVarsInterface {
-  pHandle: F42PortHandle;
+  msgScktReader: MsgSocketReader
   minSrvMoney: number;
   targetList: string[];
   dBugStr: string[];
@@ -18,13 +18,13 @@ interface AT_OpVarsInterface {
 
 /**
  * @param {NS} ns
- * @version 3
+ * @version 4
  */
 export async function main(ns: NS): void {
   // make sure not already running
   vaildateSingleton(ns);
 
-  const scriptTitle = "AutoTargeter:v3";
+  const scriptTitle = "AutoTargeter:v4";
   const logger = new F42Logger(ns, false, false, true, scriptTitle, true);
   const scriptDescription = "Finds valid targets and posts them to HackManager";
   const scriptFlags = [];
@@ -35,9 +35,8 @@ export async function main(ns: NS): void {
   }
 
   // init
-  const portHandler = new F42PortHandler(logger);
   const opVars: AT_OpVarsInterface = {
-    pHandle: portHandler.getPortHandle(F42_HM_TARGETS.id, false, F42_HM_TARGETS.key),
+    msgScktReader: new MsgSocketReader(ns, PORT_HM_TARGETS),
     minSrvMoney: 1e6,
     targetList: false,
     dBugStr: [],
@@ -98,9 +97,9 @@ function vaildateSingleton(ns) {
 
 function isHackManRunning(feedback: F42Feedback, opVars: AT_OpVarsInterface) {
   // peek target list
-  const portList = opVars.pHandle.peek();
+  const portList = opVars.msgScktReader.peekMessage();
 
-  if (feedback.ns.isRunning("/f42/hack-man/hack-manager.js")) {
+  if (feedback.ns.isRunning("f42/hack-man/hack-manager.js")) {
     feedback.printHiLi("- HackManager running");
     if (!portList) {
       // port list not loaded yet, wait
@@ -108,7 +107,7 @@ function isHackManRunning(feedback: F42Feedback, opVars: AT_OpVarsInterface) {
     }
     else {
       // copy list
-      opVars.targetList = portList;
+      opVars.targetList = portList.targets;
       return true;
     }
   }
@@ -117,7 +116,7 @@ function isHackManRunning(feedback: F42Feedback, opVars: AT_OpVarsInterface) {
     opVars.targetList = false;
 
     if (portList !== false) {
-      opVars.pHandle.clear();
+      opVars.msgScktReader.popMessage();
       feedback.printErr("- HackManager not started: Clearing port");
     }
     else {
@@ -274,7 +273,6 @@ function addTarget(feedback: F42Feedback, target: string): void {
   }
   else {
     feedback.printf("Target found and added: %s", target);
-    // feedback.ns.run("/f42/utility/add-target-server.js", 1, "--target", target, "-q");
-    HackManager.addTargetServer(ns, target);
+    HackManager.addTargetServer(feedback.ns, target);
   }
 }

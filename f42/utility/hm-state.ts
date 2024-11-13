@@ -1,16 +1,15 @@
 import F42Logger from '/f42/classes/f42-logger-class';
-import F42PortHandler from '/f42/classes/F42PortHandler.class';
 // import F42ClFlagDef from "/scripts/classes/f42-cl-flag-def-class.js";
-import { F42_HM_STATE } from '/f42/cfg/port-defs';
+import { PORT_HM_STATE } from '/f42/cfg/port-defs';
 import { getActivityVisStr } from '/f42/utility/utility-functions';
 import { F42_ANSI_COL_HILI, F42_ANSI_COL_TXT } from '/f42/classes/f42-feedback-class';
-
+import { MsgSocketReader } from '/f42/classes/MsgSocketReader.class';
 
 /** @param {NS} ns */
 export async function main(ns: NS): void {
   const scriptTitle = "HackManager:State";
   const logger = new F42Logger(ns, false, false, true, scriptTitle, true);
-  const scriptDescription = "Displays content of HM state port";
+  const scriptDescription = "Renders content of HM state port";
   const scriptFlags = [];
   const feedback = logger.initFeedback(scriptTitle, scriptDescription, scriptFlags);
 
@@ -18,20 +17,19 @@ export async function main(ns: NS): void {
     return;
   }
 
-  const portHandler = new F42PortHandler(logger);
-  const viewPh = portHandler.getPortHandle(F42_HM_STATE.id, false, F42_HM_STATE.key);
+  const msgScktReader = new MsgSocketReader(ns, PORT_HM_STATE);
 
   while (true) {
-    if (!viewPh.peek()) {
+    if(!msgScktReader.peekMessage()){
       ns.clearLog();
       feedback.printErr("No data on status port, waiting 3s...");
       await ns.sleep(3000);
       continue;
     }
 
-    const sData = viewPh.peek();
+    const sData = msgScktReader.peekMessage().state;
 
-    // feedback.printf(viewPh.peek());
+    // feedback.printf(msgScktReader.peekMessage().state);
     // await ns.sleep(500);
     // continue;
 
@@ -45,15 +43,15 @@ export async function main(ns: NS): void {
       rate: "",
     };
     const COL_HACK = "\x1b[38;5;200m";
-    let skippedTargets = 0;
+    const skippedTargets = 0;
 
     for (const hostname in sData.targets) {
       const tgtData = sData.targets[hostname];
 
-      if (tgtData.totalHacked < 100) {
-        skippedTargets++;
-        continue;
-      }
+      // if(tgtData.totalHacked < 100){
+      //   skippedTargets++;
+      //   continue;
+      // }
 
       if (hostname.length > maxHostLen) {
         maxHostLen = hostname.length;

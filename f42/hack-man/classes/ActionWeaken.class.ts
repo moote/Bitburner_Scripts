@@ -20,8 +20,8 @@ export default class WeakenAction extends ActionBase implements ActionInterface 
   /**
    * @param {TargetServer} tgtSrv
    */
-  constructor(tgtSrv: TargetServer, serialObj = undefined) {
-    super(tgtSrv, ACT_WEAK, serialObj);
+  constructor(tgtSrv: TargetServer) {
+    super(tgtSrv, ACT_WEAK);
 
     this.allowedLogFunctions = [
       // "shouldTriggerAction",
@@ -70,7 +70,7 @@ export default class WeakenAction extends ActionBase implements ActionInterface 
   }
 
   targetAnalyse(): void {
-    lthis.getLo("targetAnalyse");
+    this.getLo("targetAnalyse");
 
     // change status and create new job
     this.setStatusActiveJob();

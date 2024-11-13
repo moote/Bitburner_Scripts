@@ -1,10 +1,29 @@
 import F42Logger from "f42/classes/f42-logger-class";
 import { randomBase62Str } from "f42/utility/utility-functions";
 import F42Feedback from "/f42/classes/f42-feedback-class";
+import HMJobMsg, { HMJobMsg_Interface } from "/f42/hack-man/classes/HMJobMsg.class";
 // import F42ClFlagDef from "f42/classes/f42-cl-flag-def-class";
+
+const DUMMY_MSG_FILE = "/f42/dummy-msg.js";
+const PORT_ID = 10;
 
 /** @param {NS} ns */
 export async function main(ns: NS): void {
+  // const foo = {msgId: "msgId_AcPWMi"};
+  // ns.write(DUMMY_MSG_FILE, JSON.stringify(foo), "w");
+  // return;
+
+  const msgData: HMJobMsg_Interface = ns.read(DUMMY_MSG_FILE);
+  ns.tprintf("TEST: (port: %d) Sending dummy job >>  msgData: %s", PORT_ID, msgData);
+
+  const mqPortHandle = ns.getPortHandle(10);
+  if (!mqPortHandle) {
+    throw new Error(ns.sprintf("!! Error getting port handle: %d", PORT_ID));
+  }
+  mqPortHandle.tryWrite(JSON.parse(msgData));
+}
+
+function classTest(ns:NS){
   const scriptTitle = "TS Test";
   const logger = new F42Logger(ns, true, true, false, scriptTitle, false);
   const scriptDescription = "";

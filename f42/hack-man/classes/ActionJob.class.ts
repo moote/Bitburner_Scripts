@@ -1,7 +1,7 @@
 import F42Base from "/f42/classes/F42Base.class";
 import { timestampAsBase62Str } from "/f42/utility/utility-functions";
 import JobMessage, * as jMsg from "/f42/hack-man/classes/JobMsg.class";
-import { MsgErrorInvalidMsg, MsgErrorBadStatus, MsgErrorDuplicate } from "/f42/utility/utility-functions";
+import { MsgErrorInvalidMsg, MsgErrorBadStatus, MsgErrorDuplicate } from "/f42/hack-man/classes/MsgException.class";
 import ActionBase from "/f42/hack-man/classes/ActionBase.class";
 import TargetServer from "/f42/hack-man/classes/TargetServer.class";
 
@@ -36,11 +36,7 @@ export default class ActionJob extends F42Base {
   constructor(action: ActionBase) {
     super(action.logger);
     this.#doInitAll(action);
-
-    if (serialObj) {
-      this.unserialize(serialObj);
-    }
-
+    
     this.allowedLogFunctions = [
       "setStatusComplete",
       // "checkReceivedMsg",

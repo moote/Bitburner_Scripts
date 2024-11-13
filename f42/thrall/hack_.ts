@@ -1,7 +1,7 @@
 import { ThrallActionResult } from "./classes/interfaces";
 
 export const RESULT_FLAG = "-THRALL-result";
-export const JOB_RESULT_PATH = "scripts/dynamic/v3/thrall/tmp/%d" + RESULT_FLAG + ".txt";
+export const JOB_RESULT_PATH = "f42/thrall/tmp/%d" + RESULT_FLAG + ".txt";
 
 /** @param {NS} ns */
 export async function main(ns: NS): void {
