@@ -1,11 +1,11 @@
 import HackManager from "/f42/hack-man/classes/HackManager.class";
-import F42Logger from "/f42/classes/f42-logger-class";
+import Logger from "/f42/classes/Logger.class";
 import { HMCtrlMsg_ADD_TS } from "/f42/hack-man/classes/HMCtrlMsg.class";
 // import F42ClFlagDef from "/f42/classes/f42-cl-flag-def-class";
 
 const F42_HM_DEBUG = true;
-const F42_HM_DEBUG_TARGET = [
-  "foodnstuff",
+const F42_HM_DEBUG_TARGET: string[] = [
+  // "foodnstuff",
   // "nectar-net",
   // "sigma-cosmetics",
   // "joesguns",
@@ -22,13 +22,13 @@ const F42_HM_DEBUG_TARGET = [
 ];
 
 /** @param {NS} ns */
-export async function main(ns: NS): void {
-  const scriptTitle = "HackManager:V5";
-  const logger = new F42Logger(ns, true, false, true, scriptTitle, true);
+export async function main(ns: NS): Promise<void> {
+  const scriptTitle = "HackManager:V6";
+  const logger = new Logger(ns, true, true, false, scriptTitle, false);
   const scriptDescription = "Manages automated hacking";
-  const scriptFlags = [];
-  const feedback = logger.initFeedback(scriptTitle, scriptDescription, scriptFlags);
+  const feedback = logger.initFeedback(scriptTitle, scriptDescription);
 
+  // help requested / flag errors
   if (!feedback) {
     return;
   }
@@ -76,6 +76,6 @@ export async function main(ns: NS): void {
     }
 
     hackMan.mainLoop();
-    await ns.sleep(250);
+    await ns.sleep(1500);
   }
 }

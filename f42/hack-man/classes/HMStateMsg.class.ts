@@ -2,45 +2,9 @@ import MsgBase from "/f42/classes/MsgBase.class";
 import MsgSocket from "/f42/classes/MsgSocket.class";
 import { PORT_HM_STATE } from "/f42/cfg/port-defs";
 import { timestampAsBase62Str } from "/f42/utility/utility-functions";
-
-export interface HMStateInterface {
-  meta: {
-    ver: number;
-    sVer: number;
-    id: string;
-    initTs: number;
-  },
-  targets: {[key: string]: TSrvStateInterface},
-  gen: number;
-}
-
-export interface TSrvStateInterface {
-  initTs: number,
-  totalHacked: number,
-  totalGrown: number,
-  totalWeakened: number,
-  completedJobs: number,
-  activeJob: JobStateInterface,
-  raw: {
-    totalHacked: number,
-    totalGrown: number,
-    totalWeakened: number,
-  }
-}
-
-export interface JobStateInterface {
-  type: string,
-  estAmt: number,
-  estTime: number,
-  startTime: number,
-  msgSent: number,
-  msgRcvd: number,
-  amt: number
-}
-
-interface HMStateMsg_Interface {
-  state: HMStateInterface;
-}
+import { HMState_Interface, HMStateMsg_Interface } from "/f42/classes/helpers/interfaces";
+import { getEmpty_HMState_Interface } from "/f42/classes/helpers/empty-object-getters";
+import { MsgObjType } from "/f42/hack-man/classes/enums";
 
 /**
  * TargetServer list socket message for HackManager
@@ -48,15 +12,15 @@ interface HMStateMsg_Interface {
 export class HMStateMsg extends MsgBase implements HMStateMsg_Interface {
   static portId: number = PORT_HM_STATE;
 
-  #state: HMStateInterface;
+  #state: HMState_Interface;
 
-  static preHydrate(ns: NS, rawObj: HMStateMsg_Interface): HMStateMsg{
-    if(!rawObj){
+  static preHydrate(ns: NS, rawObj: HMStateMsg_Interface): HMStateMsg | false {
+    if (!rawObj) {
       return false;
     }
-    
+
     // do hydration & return
-    const newMsg = new HMStateMsg(ns, {});
+    const newMsg = new HMStateMsg(ns, getEmpty_HMState_Interface());
     newMsg.hydrate(rawObj);
     return newMsg;
   }
@@ -68,12 +32,12 @@ export class HMStateMsg extends MsgBase implements HMStateMsg_Interface {
    * @param target Array of target hostnames
    * @returns Result of push
    */
-  static staticPush(ns: NS, state: HMStateInterface): boolean {
+  static staticPush(ns: NS, state: HMState_Interface): boolean {
     const msg = new HMStateMsg(ns, state);
     return msg.push();
   }
 
-  constructor(ns: NS, state: HMStateInterface) {
+  constructor(ns: NS, state: HMState_Interface) {
     super(
       timestampAsBase62Str(),
       HMStateMsg.portId,
@@ -90,25 +54,30 @@ export class HMStateMsg extends MsgBase implements HMStateMsg_Interface {
     return super.msgPort;
   }
 
-  get state(): HMStateInterface {
+  get msgType() : MsgObjType {
+    return MsgObjType.HM_STATE;
+  }
+
+  get state(): HMState_Interface {
     return this.#state;
   }
 
-  serialize(): HMTgtSrvListMsg_Interface {
+  serialize(): HMStateMsg_Interface {
     // return data including any inherited
     return {
       ...super.serialize(),
+      msgType: this.msgType,
       state: this.#state,
     };
   }
 
-  hydrate(rawObj: HMTgtSrvListMsg_Interface): HMTgtSrvListMsg {
-    if(
+  hydrate(rawObj: HMStateMsg_Interface): void {
+    if (
       typeof rawObj.state === "undefined"
-    ){
+    ) {
       throw new Error("HMTgtSrvListMsg.hydrate: Invalid data: " + JSON.stringify(rawObj, null, 2));
     }
-    else{
+    else {
       this.#state = rawObj.state;
     }
 

@@ -1,4 +1,5 @@
-import ActionBase, { ACT_GROW, ActionInterface } from "/f42/hack-man/classes/ActionBase.class";
+import ActionBase, { ActionInterface } from "/f42/hack-man/classes/ActionBase.class";
+import { ActionType, TgtSrvOpMode } from "/f42/hack-man/classes/enums";
 import TargetServer from "/f42/hack-man/classes/TargetServer.class";
 
 /**
@@ -12,7 +13,7 @@ export default class GrowAction extends ActionBase implements ActionInterface {
    * @param {TargetServer} tgtSrv
    */
   constructor(tgtSrv: TargetServer) {
-    super(tgtSrv, ACT_GROW);
+    super(tgtSrv, ActionType.GROW);
   }
 
   toString(): string {
@@ -20,7 +21,6 @@ export default class GrowAction extends ActionBase implements ActionInterface {
       "GrowAction: type: %s | status: %s | srvUid: %s",
       this.type,
       this.status,
-      this.srvUid
     );
   }
 
@@ -33,7 +33,12 @@ export default class GrowAction extends ActionBase implements ActionInterface {
    * 
    */
   shouldTriggerAction(): boolean {
-    return this.srvObj.moneyAvailable < (this.srvObj.moneyMax * GROW_LEVEL_MIN_PERC);
+    if(this.tgtSrv.opMode === TgtSrvOpMode.FREE){
+      return this.tgtSrv.moneyAvailable < (this.tgtSrv.moneyMax * GROW_LEVEL_MIN_PERC);
+    }
+    else{
+      return this.tgtSrv.moneyAvailable < this.tgtSrv.moneyMax * GROW_LEVEL_MIN_PERC;
+    }
   }
 
   targetAnalyse(): void {
@@ -41,43 +46,43 @@ export default class GrowAction extends ActionBase implements ActionInterface {
     this.log(fnN, "");
 
     // change status and create new job
-    this.setStatusActiveJob();
+    const currJob = this.setStatusActiveJob();
 
     // analyse
-    this.currJob.estAmt = (this.srvObj.moneyMax - this.srvObj.moneyAvailable);
+    currJob.estAmt = (this.tgtSrv.moneyMax - this.tgtSrv.moneyAvailable);
 
     try {
-      this.currJob.estTime = this.ns.formulas.hacking.growTime(
+      currJob.estTime = this.ns.formulas.hacking.growTime(
         this.srvObj,
         this.ns.getPlayer()
       );
 
-      this.currJob.threads = Math.ceil(this.ns.formulas.hacking.growThreads(
+      currJob.threads = Math.ceil(this.ns.formulas.hacking.growThreads(
         this.srvObj,
         this.ns.getPlayer(),
-        this.srvObj.moneyMax
+        this.tgtSrv.moneyMax
       ));
     }
     catch (e) {
       // don't have formulas
-      const growMultiplier = this.srvObj.moneyMax / this.srvObj.moneyAvailable;
+      const growMultiplier = this.tgtSrv.moneyMax / this.tgtSrv.moneyAvailable;
 
-      this.currJob.threads = Math.ceil(this.ns.growthAnalyze(
+      currJob.threads = Math.ceil(this.ns.growthAnalyze(
         this.tgtSrv.hostname,
         growMultiplier
       ));
     }
 
-    if (this.currJob.threads <= 0) {
-      this.currJob.threads = 1;
+    if (currJob.threads <= 0) {
+      currJob.threads = 1;
     }
 
     // post grow job msg
-    this.currJob.batchJob();
+    currJob.batchJob();
   }
 
   get currTargetAmt(): number {
-    return this.srvObj.moneyAvailable;
+    return this.tgtSrv.moneyAvailable;
   }
 
   // utility

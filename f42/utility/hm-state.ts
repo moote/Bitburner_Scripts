@@ -6,7 +6,7 @@ import { F42_ANSI_COL_HILI, F42_ANSI_COL_TXT } from '/f42/classes/f42-feedback-c
 import { MsgSocketReader } from '/f42/classes/MsgSocketReader.class';
 
 /** @param {NS} ns */
-export async function main(ns: NS): void {
+export async function main(ns: NS): Promise<void> {
   const scriptTitle = "HackManager:State";
   const logger = new F42Logger(ns, false, false, true, scriptTitle, true);
   const scriptDescription = "Renders content of HM state port";
@@ -20,7 +20,7 @@ export async function main(ns: NS): void {
   const msgScktReader = new MsgSocketReader(ns, PORT_HM_STATE);
 
   while (true) {
-    if(!msgScktReader.peekMessage()){
+    if (!msgScktReader.peekMessage()) {
       ns.clearLog();
       feedback.printErr("No data on status port, waiting 3s...");
       await ns.sleep(3000);
@@ -73,7 +73,7 @@ export async function main(ns: NS): void {
         calcRemaingTime(ns, tgtData.activeJob.startTime, tgtData.activeJob.estTime),
         tgtData.activeJob.msgSent,
         tgtData.activeJob.msgRcvd,
-        fmatNumber(tgtData.activeJob.amt),
+        fmatNumber(ns, tgtData.activeJob.amt),
       ]);
 
       totals.weak += tgtData.raw.totalWeakened;
@@ -98,7 +98,7 @@ export async function main(ns: NS): void {
       [4, "Amt", false, true, ""],
     ];
 
-    let hRowFormat = [];
+    let hRowFormat: string[] | string = [];
     let rowFormat = [];
     let hackRowFormat = [];
     const colTitles = [];
@@ -155,7 +155,7 @@ export async function main(ns: NS): void {
   }
 }
 
-function timeFormat(ns, time) {
+function timeFormat(ns:NS, time: number) {
   if (!time) {
     return "-";
   }
@@ -167,7 +167,7 @@ function timeFormat(ns, time) {
   });
 }
 
-function calcRemaingTime(ns, startTime, estTime) {
+function calcRemaingTime(ns: NS, startTime: number, estTime: number) {
   if (!startTime || !estTime) {
     return "-";
   }
@@ -179,7 +179,7 @@ function calcRemaingTime(ns, startTime, estTime) {
   return timeFormat(ns, remTime);
 }
 
-function fmatNumber(ns, num) {
+function fmatNumber(ns: NS, num: number) {
   if (!num) {
     return 0;
   }

@@ -1,4 +1,4 @@
-import { MsgObjInterface } from "/f42/cfg/port-defs";
+import { MsgObjData_Interface } from "/f42/cfg/port-defs";
 
 /**
  * The base message port class; separate queue/socket classes
@@ -21,7 +21,7 @@ export default class MsgPort {
    * 
    * Throws exceptions on other errors.
    */
-  pushMessage(msgObj: MsgObjInterface): boolean {
+  pushMessage(msgObj: MsgObjData_Interface): boolean {
     if (!this.validatePortType(msgObj.portId)) {
       throw new Error(this.ns.sprintf("!! Not a valid message stack port: %d", msgObj.portId));
     }
@@ -29,7 +29,7 @@ export default class MsgPort {
     return this._doPushMessage(msgObj);
   }
 
-  _doPushMessage(msgObj: MsgObjInterface): boolean {
+  _doPushMessage(msgObj: MsgObjData_Interface): boolean {
     const mqPortHandle = this.ns.getPortHandle(msgObj.portId);
 
     if (!mqPortHandle) {
@@ -47,7 +47,7 @@ export default class MsgPort {
    * 
    * Throws exceptions on other errors.
    */
-  popMessage(portId: number): MsgObjInterface | boolean {
+  popMessage(portId: number): MsgObjData_Interface | boolean {
     if (!this.validatePortType(portId)) {
       throw new Error(this.ns.sprintf("!! Not a valid message stack port: %d", portId));
     }
@@ -72,7 +72,7 @@ export default class MsgPort {
   /**
    * Return peek from requested mesage stack port id
    */
-  peekMessage(portId: number): MsgObjInterface | boolean {
+  peekMessage(portId: number): MsgObjData_Interface | boolean {
     if (!this.validatePortType(portId)) {
       throw new Error(this.ns.sprintf("!! Not a valid message stack port: %d", portId));
     }

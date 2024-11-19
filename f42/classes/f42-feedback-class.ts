@@ -1,5 +1,6 @@
+import { ClFlagDef_Type } from '/f42/classes/f42-cl-flag-def-class';
 import F42Logger from '/f42/classes/f42-logger-class';
-import F42CLFlagValidator from 'f42/classes/f42-cl-flag-validator-class';
+import F42CLFlagValidator, { ParsedCLFlag_Type, ParsedCLFlags_Type } from 'f42/classes/f42-cl-flag-validator-class';
 
 export const F42_ANSI_COL_H1 = "\x1b[38;5;207m";
 export const F42_ANSI_COL_H2 = "\x1b[38;5;219m";
@@ -15,10 +16,10 @@ export default class F42Feedback {
   #feedbackKey: string;
   #title: string;
   #desc: string;
-  #clFlagValidator: F42CLFlagValidators;
+  #clFlagValidator: F42CLFlagValidator;
   #userDefErrors = [];
 
-  static feedbackFactory(logger: F42Logger, feedbackKey: string, title: string, desc: string, clFlagsHelpArr: Array[string[]]): F42Feedback {
+  static feedbackFactory(logger: F42Logger, feedbackKey: string, title: string, desc: string, clFlagsHelpArr: ClFlagDef_Type[]): F42Feedback {
     // init feedback object
     const feedback = new F42Feedback(logger, feedbackKey, title, desc);
 
@@ -46,7 +47,7 @@ export default class F42Feedback {
     this.#clFlagValidator = new F42CLFlagValidator(this.#logger.ns, this.#logger);
   }
 
-  set clFlagsHelpArr(clFlagsHelpArr: Array[string[]]) {
+  set clFlagsHelpArr(clFlagsHelpArr: ClFlagDef_Type[]) {
     this.#clFlagValidator.parseClFlags(clFlagsHelpArr);
   }
 
@@ -62,12 +63,22 @@ export default class F42Feedback {
     return this.#logger;
   }
 
-  get parsedClFlags(): { [key: string]: string | boolean | number } {
+  get parsedClFlags(): ParsedCLFlags_Type {
     return this.#clFlagValidator.parsedClFlags;
   }
 
-  getFlag(flag: string): string | boolean | number {
+  getFlag(flag: string): ParsedCLFlag_Type {
     return this.#clFlagValidator.parsedClFlags[flag];
+  }
+
+  getFlagNumber(flag: string): number {
+    const result = this.#clFlagValidator.parsedClFlags[flag];
+    if (typeof result === "number") {
+      return result;
+    }
+    else{
+      throw new Error("Not a number flag!: " + flag);
+    }
   }
 
   /**
@@ -84,13 +95,13 @@ export default class F42Feedback {
     }
   }
 
-  printSubTitle(msgTemplate: string, ...msgArgs: (string|number|boolean)[]): void {
+  printSubTitle(msgTemplate: string, ...msgArgs: (string | number | boolean)[]): void {
     this.printLineSeparator(F42_ANSI_COL_H2);
-    this.#doFeedback(F42_ANSI_COL_H2 + msgTemplate, msgArgs);
+    this.#doFeedback(F42_ANSI_COL_H2 + msgTemplate, ...msgArgs);
     this.printLineSeparator(F42_ANSI_COL_H2);
   }
 
-  printHiLi(msgTemplate: string, ...msgArgs: (string|number|boolean)[]): void {
+  printHiLi(msgTemplate: string, ...msgArgs: (string | number | boolean)[]): void {
     this.#doFeedback(F42_ANSI_COL_HILI + msgTemplate, ...msgArgs);
   }
 
@@ -99,7 +110,7 @@ export default class F42Feedback {
    * 
    * @param {any[]} msgArgs
    */
-  print(...msgArgs: (string|number|boolean)[]): void {
+  print(...msgArgs: (string | number | boolean)[]): void {
     this.#doFeedback(F42_ANSI_COL_TXT + msgArgs.join(""));
   }
 
@@ -109,7 +120,7 @@ export default class F42Feedback {
    * @param {string} format
    * @param {any[]} msgArgs
    */
-  printf(format: string, ...msgArgs: (string|number|boolean)[]): void {
+  printf(format: string, ...msgArgs: (string | number | boolean)[]): void {
     this.#doFeedback(F42_ANSI_COL_TXT + format, ...msgArgs);
   }
 
@@ -138,7 +149,7 @@ export default class F42Feedback {
   /**
    * Error render function
    */
-  printErr(errorMsg: string, ...errorMsgArgs: (string|number|boolean)[]): void {
+  printErr(errorMsg: string, ...errorMsgArgs: (string | number | boolean)[]): void {
     this.#doFeedback(F42_ANSI_COL_ERR + errorMsg, ...errorMsgArgs);
   }
 
@@ -154,7 +165,7 @@ export default class F42Feedback {
    * Is automatically called by Logger if help
    * cl argument found; do not call manually
    */
-  printHelpAndEnd(): void {
+  printHelpAndEnd(): boolean {
     if (this.#clFlagValidator.helpRequested) {
       this.printTitle();
       this.printUsageInfo();
@@ -170,33 +181,35 @@ export default class F42Feedback {
     for (const flag in this.#clFlagValidator.parsedClFlags) {
       if ("_" == flag) continue;
 
-      if (Array.isArray(this.#clFlagValidator.parsedClFlags[flag])) {
+      const flagVar = this.#clFlagValidator.parsedClFlags[flag];
+
+      if (Array.isArray(flagVar)) {
         const typeArr = [];
         const typeStr = [];
-        for (const val of this.#clFlagValidator.parsedClFlags[flag]) {
+        for (const val of flagVar) {
           typeArr.push(typeof val);
           typeStr.push("%s");
         }
 
         this.#doFeedback(
           F42_ANSI_COL_HILI + ">> %s: %s [" + typeStr.join("|") + "]",
-          flag.formatAsFlag(),
-          this.#clFlagValidator.parsedClFlags[flag],
+          F42CLFlagValidator.formatAsFlag(flag),
+          flagVar,
           ...typeArr
         );
       }
       else {
         this.#doFeedback(
           F42_ANSI_COL_HILI + ">> %s: %s (%s)",
-          flag.formatAsFlag(),
-          this.#clFlagValidator.parsedClFlags[flag],
-          (typeof this.#clFlagValidator.parsedClFlags[flag])
+          F42CLFlagValidator.formatAsFlag(flag),
+          flagVar,
+          (typeof flagVar)
         );
       }
     }
   }
 
-  addUserDefError(flag: string, errorMsg: string, ...errArgs: (string|number|boolean)[]): void {
+  addUserDefError(flag: string, errorMsg: string, ...errArgs: (string | number | boolean)[]): void {
     if (!(flag in this.#userDefErrors)) {
       this.#userDefErrors[flag] = [];
     }
@@ -215,7 +228,7 @@ export default class F42Feedback {
     this.#userDefErrors[flag].push(errorMsg);
   }
 
-  addUserDefErrorAndEnd(flag: string, errorMsg: string, ...errArgs: (string|number|boolean)[]): void {
+  addUserDefErrorAndEnd(flag: string, errorMsg: string, ...errArgs: (string | number | boolean)[]): void {
     this.addUserDefError(flag, errorMsg, ...errArgs);
     this.printFlagErrorsAndEnd(true);
   }
@@ -224,7 +237,7 @@ export default class F42Feedback {
    * Is automatically called by Logger if validation 
    * errors found; do not call manually
    */
-  printFlagErrorsAndEnd(force = false): void {
+  printFlagErrorsAndEnd(force = false): boolean {
     if (this.#clFlagValidator.hasError || force) {
       this.printTitle();
       this.printUsageInfo();
@@ -254,7 +267,7 @@ export default class F42Feedback {
     }
   }
 
-  #doFeedback(msgTemplate: string, ...msgArgs: (string|number|boolean)[]): void {
+  #doFeedback(msgTemplate: string, ...msgArgs: (string | number | boolean)[]): void {
     // this.#logger.doFeedback(this.#feedbackKey, "%s %s %d", "forty", "two", 42);
     this.#logger.doFeedback(this.#feedbackKey, msgTemplate, ...msgArgs);
   }

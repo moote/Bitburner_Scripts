@@ -1,6 +1,3 @@
-import MsgQueue from "/f42/classes/MsgQueue.class";
-import MsgSocket from "/f42/classes/MsgSocket.class";
-
 /**
  * 
  * MessageQueue: can hold 0:n messages to a system limit, then they are popped off
@@ -66,16 +63,4 @@ export const MSG_SOCKETS = [
 //   [PORT_THRALL_INFECT_CFG.id]: { name: "Thrall infect cfg port", accessKey: PORT_THRALL_INFECT_CFG.key },
 //   [PORT_ORDER_66.id]: { name: "Order 66", accessKey: PORT_ORDER_66.key },
 // };
-
-/**
- * Should be implemented for any data sent to port/stack
- */
-export interface MsgObjInterface {
-  msgId: string;
-  portId: number;
-  msgPort: MsgQueue | MsgSocket;
-  push: () => boolean;
-  serialize: () => string;
-  hydrate: (dataObj: MsgObjInterface) => boolean;
-}
 

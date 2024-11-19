@@ -1,11 +1,12 @@
-import F42Logger from '/scripts/classes/f42-logger-class.js';
+import { timestampAsBase62Str } from '/f42/utility/utility-functions';
+import Logger from '/f42/classes/Logger.class';
 // import F42ClFlagDef from '/scripts/classes/f42-cl-flag-def-class.js';
 // import TargetServer from "/scripts/dynamic/v3/target-server-class.js";
 // import HackAction from "/scripts/dynamic/v3/hack-action-class.js";
 // import { getRandomNumberInRange, timestampAsBase62Str } from "/scripts/utility/utility-functions.js";
 
 /** @param {NS} ns */
-export async function main(ns: NS): void {
+export async function main(ns: NS): Promise<void> {
     // targetServerTest(ns);
     // thrallInfectorTest(ns);
     // portContentsTest(ns);
@@ -15,13 +16,12 @@ export async function main(ns: NS): void {
 }
 
 /** @param {NS} ns */
-async function gangTest(ns: NS): void {
+async function gangTest(ns: NS): Promise<void> {
     const scriptTitle = "Gang Test";
-    const logger = new F42Logger(ns, true, true, false, scriptTitle, false);
+    const logger = new Logger(ns, true, true, false, scriptTitle, false);
     const scriptDescription = "";
-    const scriptFlags = [];
-    const feedback = logger.initFeedback(scriptTitle, scriptDescription, scriptFlags);
-    if (!feedback) {
+    const feedback = logger.initFeedback(scriptTitle, scriptDescription);
+    if (feedback === false) {
         return;
     }
 
@@ -33,7 +33,9 @@ async function gangTest(ns: NS): void {
         }
     }
 
-    feedback.printf("Top member (hacking): %s", topMemInfo.toString());
+    if(topMemInfo){
+        feedback.printf("Top member (hacking): %s", topMemInfo.toString());
+    }
 
     while (true) {
         const duration = await ns.gang.nextUpdate();
@@ -43,24 +45,18 @@ async function gangTest(ns: NS): void {
 
         const gangInfo = ns.gang.getGangInformation();
 
-
-
         feedback.printf("Gang completed %s of activity.", ns.tFormat(duration));
         feedback.print("Bonus time remaining: ", ns.tFormat(ns.gang.getBonusTime()));
         feedback.print("Wanted level: ", gangInfo.wantedLevel);
         feedback.print("Wanted level gain: ", gangInfo.wantedLevelGainRate);
         feedback.print(timestampAsBase62Str());
     }
-
-    feedback.printLineSeparator();
-    // feedback.printHiLi("evenCnt: %d / %d", evenCnt, maxLoops);
-    feedback.printEnd();
 }
 
 // /** @param {NS} ns */
 // async function shorthandIfTest(ns: NS): void {
 //     const scriptTitle = "Shorthand If Test";
-//     const logger = new F42Logger(ns, false, true, false, scriptTitle, true);
+//     const logger = new Logger(ns, false, true, false, scriptTitle, true);
 //     const scriptDescription = "";
 //     const scriptFlags = [];
 //     const feedback = logger.initFeedback(scriptTitle, scriptDescription, scriptFlags);
@@ -116,7 +112,7 @@ async function gangTest(ns: NS): void {
 
 // /** @param {NS} ns */
 // async function targetServerTest(ns: NS): void {
-//     const logger = new F42Logger(ns, true, false, true, "HMV3", false);
+//     const logger = new Logger(ns, true, false, true, "HMV3", false);
 //     const scriptTitle = "HackManager V3 TEst";
 //     const scriptDescription = "";
 //     const scriptFlags = [];

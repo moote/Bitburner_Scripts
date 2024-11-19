@@ -19,7 +19,7 @@ export default class MsgSocket extends MsgPort {
    * 
    * @param msgObj 
    */
-  pushMessage(msgObj: MsgObjInterface): boolean {
+  pushMessage(msgObj: MsgObjData_Interface): boolean {
     // validate socket
     if (!this.validatePortType(msgObj.portId)) {
       throw new Error(this.ns.sprintf("!! Not a valid socket port: %d", msgObj.portId));

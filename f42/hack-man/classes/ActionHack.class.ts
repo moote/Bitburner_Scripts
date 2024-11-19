@@ -1,4 +1,5 @@
-import ActionBase, { ACT_HACK, ActionInterface } from "/f42/hack-man/classes/ActionBase.class";
+import ActionBase, { ActionInterface } from "/f42/hack-man/classes/ActionBase.class";
+import { ActionType, TgtSrvOpMode } from "/f42/hack-man/classes/enums";
 import TargetServer from "/f42/hack-man/classes/TargetServer.class";
 
 const HACK_MONEY_PERC = 0.9;
@@ -8,7 +9,7 @@ export default class HackAction extends ActionBase implements ActionInterface {
    * @param {TargetServer} tgtSrv
    */
   constructor(tgtSrv: TargetServer) {
-    super(tgtSrv, ACT_HACK);
+    super(tgtSrv, ActionType.HACK);
   }
 
   toString(): string {
@@ -16,7 +17,6 @@ export default class HackAction extends ActionBase implements ActionInterface {
       "HackAction: type: %s | status: %s | srvUid: %s",
       this.type,
       this.status,
-      this.srvUid
     );
   }
 
@@ -37,36 +37,42 @@ export default class HackAction extends ActionBase implements ActionInterface {
     this.log(fnN, "");
 
     // change status and create new job
-    this.setStatusActiveJob();
+    const currJob = this.setStatusActiveJob();
 
     // analyse
-    this.currJob.estAmt = (this.srvObj.moneyMax * HACK_MONEY_PERC);
+    if(this.tgtSrv.opMode === TgtSrvOpMode.FREE){
+      currJob.estAmt = (this.tgtSrv.moneyMax * HACK_MONEY_PERC);
+    }
+    else{
+      // hack max when in trade target mode
+      currJob.estAmt = this.tgtSrv.moneyMax;
+    }
 
     try {
-      this.currJob.estTime = this.ns.formulas.hacking.hackTime(
+      currJob.estTime = this.ns.formulas.hacking.hackTime(
         this.srvObj,
         this.ns.getPlayer()
       );
     }
     catch (e) {
       // don't have formulas
-      this.ns.getHackTime(this.tgtSrv.hostname);
+      currJob.estTime = this.ns.getHackTime(this.tgtSrv.hostname);
     }
 
-    this.currJob.threads = Math.ceil(this.ns.hackAnalyzeThreads(
+    currJob.threads = Math.ceil(this.ns.hackAnalyzeThreads(
       this.tgtSrv.hostname,
-      this.currJob.estAmt
+      currJob.estAmt
     ));
 
-    if (this.currJob.threads <= 0) {
-      this.currJob.threads = 1;
+    if (currJob.threads <= 0) {
+      currJob.threads = 1;
     }
 
     // post grow job msg
-    this.currJob.batchJob();
+    currJob.batchJob();
   }
 
   get currTargetAmt(): number {
-    return this.srvObj.moneyAvailable;
+    return this.tgtSrv.moneyAvailable;
   }
 }

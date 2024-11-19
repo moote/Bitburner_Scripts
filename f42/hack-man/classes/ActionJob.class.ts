@@ -1,27 +1,37 @@
 import F42Base from "/f42/classes/F42Base.class";
 import { timestampAsBase62Str } from "/f42/utility/utility-functions";
-import JobMessage, * as jMsg from "/f42/hack-man/classes/JobMsg.class";
+import JobMessageWrapper, * as jMsg from "./JobMsgWrapper.class";
 import { MsgErrorInvalidMsg, MsgErrorBadStatus, MsgErrorDuplicate } from "/f42/hack-man/classes/MsgException.class";
 import ActionBase from "/f42/hack-man/classes/ActionBase.class";
 import TargetServer from "/f42/hack-man/classes/TargetServer.class";
+import { getEmpty_JobState_Interface } from "/f42/classes/helpers/empty-object-getters";
+import { HasState_Interface, HMJobMsg_Interface, JobState_Interface } from "/f42/classes/helpers/interfaces";
+import { ActionType } from "/f42/hack-man/classes/enums";
 
-const JOB_STATUS_INIT = "init"; // job setup
-const JOB_STATUS_SENDING = "send"; // all messages created and ready to send / activly sending; can also receive in this state
-const JOB_STATUS_PROCESSING = "process"; // all messages sent, waiting to receive all and then process
-const JOB_STATUS_COMPLETED = "done"; // all messages receive and processed
-const JOB_STATUS_CANCELLED = "cancel"; // job was cancelled before completion
+// const ActJobStatus.INIT = "init"; // job setup
+// const ActJobStatus.SENDING = "send"; // all messages created and ready to send / activly sending; can also receive in this state
+// const ActJobStatus.PROCESSING = "process"; // all messages sent, waiting to receive all and then process
+// const ActJobStatus.COMPLETED = "done"; // all messages receive and processed
+// const ActJobStatus.CANCELLED = "cancel"; // job was cancelled before completion
 
-export default class ActionJob extends F42Base {
-  #doneInit = false;
+enum ActJobStatus {
+  INIT,
+  SENDING,
+  PROCESSING,
+  COMPLETED,
+  CANCELLED,
+}
+
+export default class ActionJob extends F42Base implements HasState_Interface {
   #id: string;
   #action: ActionBase;
-  #status: string;
+  #status: ActJobStatus;
 
   #estAmt: number;
   #estTime: number;
   #threads: number;
 
-  #batchMessages: JobMessage[];
+  #batchMessages: JobMessageWrapper[];
   #messagesSent: number;
   #messagesRcvd: number;
 
@@ -35,8 +45,24 @@ export default class ActionJob extends F42Base {
 
   constructor(action: ActionBase) {
     super(action.logger);
-    this.#doInitAll(action);
-    
+    this.#id = timestampAsBase62Str(Math.random());
+    this.#action = action;
+    this.#status = ActJobStatus.INIT;
+
+    this.#estAmt = 0;
+    this.#estTime = 0;
+    this.#threads = 0;
+
+    this.#batchMessages = [];
+    this.#messagesSent = 0;
+    this.#messagesRcvd = 0;
+
+    this.#jobStartTs = Date.now();
+    this.#jobEndTs = 0;
+    this.#startAmt = this.action.currTargetAmt;
+    this.#endAmt = 0;
+    this.#jobAmt = 0;
+
     this.allowedLogFunctions = [
       "setStatusComplete",
       // "checkReceivedMsg",
@@ -45,93 +71,43 @@ export default class ActionJob extends F42Base {
     ];
   }
 
-  #doInitAll(action: ActionBase): void {
-    this.#initId();
-    this.#initAction(action);
-    this.setStatusInit();
-    this.#batchMessages = [];
-    this.#messagesSent = 0;
-    this.#messagesRcvd = 0;
-    this.#jobStartTs = Date.now();
-
-
-    this.#jobStartTs = 0;
-    this.#jobEndTs = 0;
-    this.#startAmt = this.action.currTargetAmt;
-    this.#endAmt = 0;
-    this.#jobAmt = 0;
-
-    this.#doneInit = true;
-  }
-
-  // ////////////////
-  // doneInit
-  // ////////////////
-
-  /**
-   * @throws {Error}  Throws error if it's called after initialisation. Should
-   *                  be included at start of all functions that are init only.
-   */
-  #testInit(): void {
-    if (this.#doneInit) {
-      throw new Error("Init Error: can't run init functions, already initialised");
-    }
-  }
-
-  // ////////////////
+  // \\\\\\\\\\\\\\\\
   // id
   // ////////////////
-
-  #initId(): void {
-    this.#testInit();
-    this.#id = timestampAsBase62Str(Math.random());
-  }
 
   get id(): string {
     return this.#id;
   }
 
-  // ////////////////
+  // \\\\\\\\\\\\\\\\
   // action
   // ////////////////
-
-  #initAction(action: ActionBase): void {
-    this.#testInit();
-    this.#action = action;
-  }
 
   get action(): ActionBase {
     return this.#action;
   }
 
-  // ////////////////
+  // \\\\\\\\\\\\\\\\
   // status
   // ////////////////
 
-  setStatusInit(): void {
-    this.#status = JOB_STATUS_INIT;
-  }
-
   setStatusSending(): void {
-    this.#status = JOB_STATUS_SENDING;
+    this.#status = ActJobStatus.SENDING;
     this.sendMessages();
   }
 
   setStatusProcessing(): void {
-    this.#status = JOB_STATUS_PROCESSING;
+    this.#status = ActJobStatus.PROCESSING;
   }
 
   setStatusComplete(): void {
     this.getLo("setStatusComplete");
     this.#jobEndTs = Date.now();
     this.#endAmt = this.#action.currTargetAmt;
-    this.#status = JOB_STATUS_COMPLETED;
+    this.#status = ActJobStatus.COMPLETED;
 
     // update action state
     this.action.setStatusNoJob();
-
-    // update target stats
-    this.tgtSrv.statCloseJob(this.type, this.#jobAmt);
   }
 
   setStatusCancel(): void {
@@ -144,45 +120,42 @@ export default class ActionJob extends F42Base {
       msg.setStatusCancel();
     }
 
-    this.#status = JOB_STATUS_CANCELLED;
+    this.#status = ActJobStatus.CANCELLED;
 
     // update action state
     this.action.setStatusNoJob();
-
-    // update target stats
-    this.tgtSrv.statCloseJob(this.type, this.#jobAmt);
   }
 
   get isStatusInit(): boolean {
-    this.getLo("get isStatusInit", this.#status);
-    return this.#status === JOB_STATUS_INIT;
+    this.getLo("get isStatusInit", ActJobStatus[this.#status]);
+    return this.#status === ActJobStatus.INIT;
   }
 
   get isStatusSending(): boolean {
-    this.getLo("get isStatusSending", this.#status);
-    return this.#status === JOB_STATUS_SENDING;
+    this.getLo("get isStatusSending", ActJobStatus[this.#status]);
+    return this.#status === ActJobStatus.SENDING;
   }
 
   get isStatusProcessing(): boolean {
-    this.getLo("get isStatusProcessing", this.#status);
-    return this.#status === JOB_STATUS_PROCESSING;
+    this.getLo("get isStatusProcessing", ActJobStatus[this.#status]);
+    return this.#status === ActJobStatus.PROCESSING;
   }
 
   get isStatusCompleted(): boolean {
-    this.getLo("get isStatusCompleted", this.#status);
-    return this.#status === JOB_STATUS_COMPLETED;
+    this.getLo("get isStatusCompleted", ActJobStatus[this.#status]);
+    return this.#status === ActJobStatus.COMPLETED;
   }
 
   get isStatusCancelled(): boolean {
-    this.getLo("get isStatusCancelled", this.#status);
-    return this.#status === JOB_STATUS_CANCELLED;
+    this.getLo("get isStatusCancelled", ActJobStatus[this.#status]);
+    return this.#status === ActJobStatus.CANCELLED;
   }
 
-  get status(): string {
+  get status(): ActJobStatus {
     return this.#status;
   }
 
-  // ////////////////
+  // \\\\\\\\\\\\\\\\
   // called from msg
   // ////////////////
 
@@ -190,7 +163,7 @@ export default class ActionJob extends F42Base {
     return this.#action.target;
   }
 
-  get type(): string {
+  get type(): ActionType {
     return this.#action.type;
   }
 
@@ -202,7 +175,7 @@ export default class ActionJob extends F42Base {
     return this.#action.tgtSrv;
   }
 
-  // ////////////////
+  // \\\\\\\\\\\\\\\\
   // estAmt
   // ////////////////
 
@@ -214,7 +187,7 @@ export default class ActionJob extends F42Base {
     return this.#estAmt;
   }
 
-  // ////////////////
+  // \\\\\\\\\\\\\\\\
   // estTime
   // ////////////////
 
@@ -226,7 +199,7 @@ export default class ActionJob extends F42Base {
     return this.#estTime;
   }
 
-  // ////////////////
+  // \\\\\\\\\\\\\\\\
   // threads
   // ////////////////
 
@@ -242,7 +215,7 @@ export default class ActionJob extends F42Base {
     return this.#threads;
   }
 
-  // ////////////////
+  // \\\\\\\\\\\\\\\\
   // messages
   // ////////////////
 
@@ -251,7 +224,7 @@ export default class ActionJob extends F42Base {
   }
 
   batchJob(): void {
-    const lo = this.getLo("batchJob", this.type);
+    const lo = this.getLo("batchJob", ActionType[this.type]);
 
     // calc batches
     const batchTotal = Math.ceil(this.#threads / this.#maxThreadBatch);
@@ -273,7 +246,7 @@ export default class ActionJob extends F42Base {
       const estBatchAmt = ((this.estAmt / this.#threads) * threadsThisBatch);
 
       // make msg
-      const msg = new JobMessage(this);
+      const msg = new JobMessageWrapper(this);
       msg.buildMsg(threadsThisBatch, this.#threads, msgCnt, batchTotal, estBatchAmt, this.estTime)
       this.#batchMessages.push(msg);
 
@@ -283,9 +256,6 @@ export default class ActionJob extends F42Base {
       remThreadCnt -= threadsThisBatch;
     }
 
-    // update target stats
-    this.tgtSrv.statStartJob(this.type, this.#estAmt, this.#estTime);
-
     // change status to send messageges
     this.setStatusSending();
   }
@@ -293,12 +263,12 @@ export default class ActionJob extends F42Base {
   sendMessages(): void {
     const lo = this.getLo("sendMessages", "this.#batchCount: %s", this.#batchCount);
 
-    if (!this.#status === JOB_STATUS_SENDING) {
-      lo.g("!! Can't send messages if not in send state: status: %s", this.#status)
+    if (this.#status !== ActJobStatus.SENDING) {
+      throw lo.gThrowErr("!! Can't send messages if not in send state: status: %s", ActJobStatus[this.#status]);
     }
 
     for (const msg of this.#batchMessages) {
-      if (msg.status === jMsg.MSG_STATUS_INIT) {
+      if (msg.canSend) {
         if (!msg.postMsg()) {
           // can't send message, stack probably full break and try again next loop
           lo.g("can't post message, exiting loop");
@@ -306,9 +276,6 @@ export default class ActionJob extends F42Base {
         }
         else {
           this.#messagesSent++;
-
-          // update target stats
-          this.tgtSrv.statMsgSent();
         }
       }
     }
@@ -337,7 +304,7 @@ export default class ActionJob extends F42Base {
    * @returns {boolean} True if message belongs to this job
    * @throws {Error} Throws error if m
    */
-  checkReceivedMsg(rcvdMsg: MsgSendInterface): boolean {
+  checkReceivedMsg(rcvdMsg: HMJobMsg_Interface): boolean {
     const lo = this.getLo("checkReceivedMsg", "CHK_MSG: %s", rcvdMsg.msgId);
 
     for (const msg of this.#batchMessages) {
@@ -351,7 +318,7 @@ export default class ActionJob extends F42Base {
         }
 
         // make sure state of received message is ahead of batch message
-        if (JobMessage.rcvdMsgHasValidStatus(rcvdMsg)) {
+        if (JobMessageWrapper.rcvdMsgHasValidStatus(rcvdMsg)) {
           // message match, save to batch message for processing and return
           msg.processReceivedMessage(rcvdMsg);
           this.#incMessagesReceived(rcvdMsg);
@@ -362,7 +329,7 @@ export default class ActionJob extends F42Base {
         else {
           // bad status id throw error
           throw new MsgErrorBadStatus(
-            this.ns.sprintf("Message status is invalid: %s", this.stringify(rcvdMsg))
+            this.ns.sprintf("Message status is invalid: %s", JSON.stringify(rcvdMsg, null, 2))
           );
         }
       }
@@ -370,19 +337,19 @@ export default class ActionJob extends F42Base {
 
     // bad message id throw error
     throw new MsgErrorInvalidMsg(
-      this.ns.sprintf("Message id is invalid: %s", this.stringify(rcvdMsg))
+      this.ns.sprintf("Message id is invalid: %s", JSON.stringify(rcvdMsg, null, 2))
     );
   }
 
   // inc received count and close job if all messages received
-  #incMessagesReceived(rcvdMsg: MsgSendInterface): void {
+  #incMessagesReceived(rcvdMsg: HMJobMsg_Interface): void {
     this.#messagesRcvd++;
 
     // inc job total
     this.#jobAmt += rcvdMsg.result.amt;
 
-    // update target stats
-    this.tgtSrv.statMsgRcvd(this.#jobAmt);
+    // record amt on action; needed as jobs are ephemeral
+    this.#action.updateActionTotalAmt(this.#jobAmt);
 
     // check if need to close
     if (this.#messagesRcvd == this.#batchCount) {
@@ -394,5 +361,22 @@ export default class ActionJob extends F42Base {
       // close job
       this.setStatusComplete();
     }
+  }
+
+  // \\\\\\\\\\\\\\\\
+  // state
+  // ////////////////
+
+  get state(): JobState_Interface {
+    const state = getEmpty_JobState_Interface();
+    state.hydrated = true;
+    state.type = this.type;
+    state.estAmt = this.estAmt;
+    state.estTime = this.estTime;
+    state.startTime = this.#jobStartTs;
+    state.msgSent = this.#messagesSent;
+    state.msgRcvd = this.#messagesRcvd;
+    state.amt = this.#jobAmt;
+    return state;
   }
 }

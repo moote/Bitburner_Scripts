@@ -1,31 +1,36 @@
 import { MsgSocketReader } from '/f42/classes/MsgSocketReader.class';
-import F42Logger from '/f42/classes/f42-logger-class';
-import F42ClFlagDef from '/f42/classes/f42-cl-flag-def-class';
+import Logger from '/f42/classes/Logger.class';
 import { timestampAsBase62Str } from '/f42/utility/utility-functions';
 
 /** @param {NS} ns */
-export async function main(ns: NS): void {
+export async function main(ns: NS): Promise<void> {
   const scriptTitle = "PeekMsgSckt";
-  const logger = new F42Logger(ns, false, false, true, scriptTitle, true);
+  const logger = new Logger(ns, false, false, true, scriptTitle, true);
   const scriptDescription = "Peek a message socket";
-  const scriptFlags = [
-    F42ClFlagDef.getReqIntAny("p", "Target socket port id"),
-    F42ClFlagDef.getOptBool("d", "Clear the socket"),
-  ];
-  const feedback = logger.initFeedback(scriptTitle, scriptDescription, scriptFlags);
+  const feedback = logger.initFeedback(scriptTitle, scriptDescription);
 
-  if (!feedback) {
-    return;
+  feedback.flagValidator.addIntFlag("p", "The port number of the socket you want to watch", true);
+  feedback.flagValidator.addBooleanFlag("d", "Dequeue the socket specified with '-p'");
+
+  // validate and check for help request / flag errors
+  if (feedback.printHelpAndEnd()) {
+    // stop further execution
+    return false;
   }
+
+  ns.tprint("STOP STOP STOP");
+  return;
+
+  const flags = feedback.flagValidator;
 
   logger.setTailSize(300, 240);
 
-  const msr = new MsgSocketReader(ns, feedback.getFlag("p"));
+  const msr = new MsgSocketReader(ns, flags.getFlagNumber("p"));
   let isInitialResize = true;
 
-  if (feedback.getFlag("d")) {
+  if (flags.getFlag("d")) {
     // dequeue
-    const title = ns.sprintf("Clear socket: %s", feedback.getFlag("p"));
+    const title = ns.sprintf("Clear socket: %s", flags.getFlag("p"));
     logger.tailTitle = title;
     feedback.title = title;
     feedback.printTitle(false);

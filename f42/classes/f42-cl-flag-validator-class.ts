@@ -1,5 +1,9 @@
+import F42Base from '/f42/classes/F42Base.class';
 import F42Logger from '/f42/classes/f42-logger-class';
-import F42Base from '/scripts/classes/f42-base-class.js';
+import { ClFlagDef_Type } from '/f42/classes/f42-cl-flag-def-class';
+
+export type ParsedCLFlag_Type = (string | number | boolean | string[]);
+export type ParsedCLFlags_Type = {[key: string]: ParsedCLFlag_Type};
 
 /**
  * Command line flag validator
@@ -10,22 +14,22 @@ export default class F42CLFlagValidator extends F42Base {
   #helpRequested = false;
   #clFlagHelpMessage: string[] | string;
   #clFlagsHelpArr: string[];
-  #parsedClFlags: (string | number | boolean)[];
+  #parsedClFlags: ParsedCLFlags_Type;
   // #orValidators = [];
+
+  static formatAsFlag(flagStr: string): string {
+    flagStr =+ "-";
+
+    if(flagStr.length > 2){
+      flagStr =+ "-";
+    }
+
+    return flagStr;
+  }
 
   constructor(ns: NS, logger: F42Logger) {
     super(ns, logger);
     this.#reset();
-
-    String.prototype.formatAsFlag = function () {
-      let flag = "-" + this;
-
-      if (this.length > 1) {
-        flag = "-" + flag;
-      }
-
-      return flag;
-    }
   }
 
   get clFlagHelpMessage(): string[] | string {
@@ -36,11 +40,11 @@ export default class F42CLFlagValidator extends F42Base {
     return this.#clFlagHelpMessage.length > 0;
   }
 
-  get clFlagsHelpArr(): string[] {
+  get clFlagsHelpArr(): ClFlagDef_Type[] {
     return this.#clFlagsHelpArr;
   }
 
-  get parsedClFlags(): string[] {
+  get parsedClFlags(): ParsedCLFlags_Type {
     return this.#parsedClFlags;
   }
 
@@ -56,6 +60,10 @@ export default class F42CLFlagValidator extends F42Base {
     return this.#hasError;
   }
 
+  formatAsFlag(flagStr: string): string {
+    return F42CLFlagValidator.formatAsFlag(flagStr);
+  }
+
   // addOrValidator(...orFlags){
   // }
 
@@ -68,7 +76,7 @@ export default class F42CLFlagValidator extends F42Base {
    *    ]
    * 
    */
-  parseClFlags(clFlagsHelpArr: string[]): void {
+  parseClFlags(clFlagsHelpArr: ClFlagDef_Type[]): void {
     const fnN = "parseClFlags";
 
     this.#reset();
@@ -83,7 +91,7 @@ export default class F42CLFlagValidator extends F42Base {
       this.#clFlagHelpMessage.push(
         super.ns.sprintf(
           "%s %s %s",
-          flagArr[0].formatAsFlag(),
+          this.formatAsFlag(flagArr[0]),
           (flagArr[2] === true ? "(req)" : "(opt)"),
           flagArr[3]
         )
@@ -430,7 +438,7 @@ export default class F42CLFlagValidator extends F42Base {
     // this.log(fnN, "");
     this.log(fnN, "flag: %s | errorMsg: %s", flag, errorMsg);
 
-    flag = flag.formatAsFlag();
+    flag = this.formatAsFlag(flag);
 
     if (!(flag in this.#errorList)) {
       this.#errorList[flag] = [];

@@ -3,70 +3,41 @@ import F42Base from '/f42/classes/F42Base.class';
 import ActionJob from '/f42/hack-man/classes/ActionJob.class';
 import { MsgErrorInvalidJob } from '/f42/hack-man/classes/MsgException.class';
 import { Server } from '@ns';
+import { ActionStatus, ActionType } from '/f42/hack-man/classes/enums';
+import { ActionJobList, HasState_Interface, HMJobMsg_Interface, JobState_Interface } from '/f42/classes/helpers/interfaces';
+import { getEmpty_JobState_Interface } from '/f42/classes/helpers/empty-object-getters';
 
-// action types
-export const ACT_WEAK = "weak";
-export const ACT_GROW = "grow";
-export const ACT_HACK = "hack";
-
-// action statuses
-export const ACT_STATUS_NO_JOB = "no-job";
-export const ACT_STATUS_ACTIVE_JOB = "active";
-
-/**
- * @param {string} testType
- */
-export function validateType(testType: string): boolean {
-  switch (testType) {
-    case ACT_WEAK:
-    case ACT_GROW:
-    case ACT_HACK:
-      return true;
-    default:
-      return false;
-  }
+export interface ActionInterface {
+  currTargetAmt: number;
 }
 
-/**
- * @param {string} testStatus
- */
-export function validateStatus(testStatus: string): boolean {
-  switch (testStatus) {
-    case ACT_STATUS_NO_JOB:
-    case ACT_STATUS_ACTIVE_JOB:
-      return true;
-    default:
-      return false;
-  }
-}
-
-export interface ActionInterface{
-  currTargetAmt: () => number;
-}
-
-export default class ActionBase extends F42Base {
+export default class ActionBase extends F42Base implements ActionInterface, HasState_Interface {
   #doneInit = false;
   #tgtSrv: TargetServer;
-  #type: string;
-  #status: string;
-  #jobs: {[key: string]: ActionJob};
-
-  /**
-   * If false then no current jobs (init or active)
-   * @type (boolean|string)
-   * @private
-   */
-  #currJobId;
-  #jobCnt;
+  #type: ActionType;
+  #status: ActionStatus;
+  #jobs: ActionJobList;
+  #currJobId: string | false;
+  #jobCnt: number;
+  #compJobCnt: number;
+  #totalAmt: number; // the total amount weakened / grown / hacked
 
   /**
    * @param {TargetServer} tgtSrv
-   * @param {string} type
+   * @param {ActionType} type
    */
-  constructor(tgtSrv: TargetServer, type: string) {
+  constructor(tgtSrv: TargetServer, type: ActionType) {
     super(tgtSrv.logger);
-    this.#doInitAll(tgtSrv, type);
-    
+    this.#tgtSrv = tgtSrv;
+    this.#type = type;
+    this.#status = ActionStatus.NO_JOB;
+    this.#jobs = {};
+    this.#jobCnt = 0;
+    this.#totalAmt = 0;
+    this.#currJobId = false;
+    this.#compJobCnt = 0;
+    this.#doneInit = true;
+
     this.allowedLogFunctions = [
       // "setStatusNoJob",
       // "shouldTriggerAction",
@@ -75,18 +46,8 @@ export default class ActionBase extends F42Base {
     ];
   }
 
-  /**
-   * @param {TargetServer} tgtSrv
-   */
-  #doInitAll(tgtSrv: TargetServer, type: string): void {
-    this.#tgtSrv = tgtSrv;
-    this.#initType = type;
-    this.#status = ACT_STATUS_NO_JOB;
-    this.#jobs = {};
-    this.#jobCnt = 0;
-    this.#currJobId = false;
-
-    this.#doneInit = true;
+  get currTargetAmt(): number {
+    return 0;
   }
 
   toString(): string {
@@ -98,8 +59,9 @@ export default class ActionBase extends F42Base {
     );
   }
 
-  // >>>>>>>>>>>>>>>>
+  // \\\\\\\\\\\\\\\\
   // doneInit
+  // ////////////////
 
   /**
    * @throws {Error}  Throws error if it's called after initialisation. Should
@@ -111,86 +73,52 @@ export default class ActionBase extends F42Base {
     }
   }
 
-  // doneInit
-  // <<<<<<<<<<<<<<<<
-
-  // >>>>>>>>>>>>>>>>
+  // \\\\\\\\\\\\\\\\
   // tgtSrv
+  // ////////////////
 
   get tgtSrv(): TargetServer {
     return this.#tgtSrv;
   }
 
-  // tgtSrv
-  // <<<<<<<<<<<<<<<<
-
-  // >>>>>>>>>>>>>>>>
+  // \\\\\\\\\\\\\\\\
   // type
+  // ////////////////
 
-  /**
-   * @param { string } newType
-   * @throws { Error } Throws error if type invalid
-   */
-  set #initType(newType: string) {
-    if (!validateType(newType)) {
-      throw new Error("HackAction set #initType: Invalid type: " + newType);
-    }
-    else {
-      this.#type = newType;
-    }
-  }
-
-  get type(): string {
+  get type(): ActionType {
     return this.#type;
   }
 
-  // type
-  // <<<<<<<<<<<<<<<<
-
-  // >>>>>>>>>>>>>>>>
+  // \\\\\\\\\\\\\\\\
   // status
+  // ////////////////
 
   /**
-   * @param { string } newStatus
-   * @throws { Error } Throws error if status invalid
+   * @returns { ActionStatus }
    */
-  set status(newStatus: string) {
-    if (!validateStatus(newStatus)) {
-      throw new Error("HackAction set status: Invalid status: " + newStatus);
-    }
-    else {
-      this.#status = newStatus;
-
-      // TODO: trigger additional status change logic
-    }
-  }
-
-  /**
-   * @returns { string }
-   */
-  get status(): string {
+  get status(): ActionStatus {
     return this.#status;
   }
 
   get hasActiveJob(): boolean {
-    return this.#status === ACT_STATUS_ACTIVE_JOB;
+    return this.#status === ActionStatus.ACTIVE_JOB;
   }
 
   setStatusNoJob(): void {
     const lo = this.getLo("setStatusNoJob");
 
-    this.#status = ACT_STATUS_NO_JOB;
+    this.#status = ActionStatus.NO_JOB;
 
-    if (this.#currJobId !== false) {
+    if (this.currJob !== false) {
       // has current job, so close/cancel
-      if (this.currJob.isStatusCompleted || this.currJob.getIsStatusCancelled) {
+      if (this.currJob.isStatusCompleted || this.currJob.isStatusCancelled) {
         // in a closed cancelled state, so just update ref
         lo.g("Clear currJobId: %s", this.#currJobId);
         this.#currJobId = false;
       }
       else {
         // in an active state so cancel
-        lo.g("Cancel currJob: %s", this.#currJobId);
+        lo.g("Cancel currJob: %s", '' + this.#currJobId);
         this.currJob.setStatusCancel();
       }
 
@@ -199,20 +127,32 @@ export default class ActionBase extends F42Base {
     }
     else {
       // no current job, do nothing
-        lo.g("No currJob");
+      lo.g("No currJob");
     }
   }
 
   setStatusActiveJob(): ActionJob {
-    this.#status = ACT_STATUS_ACTIVE_JOB;
+    this.#status = ActionStatus.ACTIVE_JOB;
     return this.#newJob();
   }
 
-  // status
-  // <<<<<<<<<<<<<<<<
+  /**
+   * An alias to this.setStatusNoJob(), but returns boolean.
+   * Cancel is still run, regardless of initial state, 
+   * ensuring job is truly cancelled.
+   * 
+   * @returns True if a job was acive before cancel
+   */
+    tryCancel(): boolean {
+    this.getLo("cancel");
+    const hadActive = this.hasActiveJob;
+    this.setStatusNoJob();
+    return hadActive;
+  }
 
-  // >>>>>>>>>>>>>>>>
+  // \\\\\\\\\\\\\\\\
   // metaId
+  // ////////////////
 
   /**
    * Use parent TargetServer.metaId
@@ -223,37 +163,34 @@ export default class ActionBase extends F42Base {
     return this.#tgtSrv.metaId;
   }
 
-  // metaId
-  // <<<<<<<<<<<<<<<<
-
-  // >>>>>>>>>>>>>>>>
+  // \\\\\\\\\\\\\\\\
   // srvObj
+  // ////////////////
 
   get srvObj(): Server {
     return this.#tgtSrv.srvObj;
   }
 
-  // srvObj
-  // <<<<<<<<<<<<<<<<
-
-  // >>>>>>>>>>>>>>>>
+  // \\\\\\\\\\\\\\\\
   // target
+  // ////////////////
 
   get target(): string {
     return this.#tgtSrv.hostname;
   }
 
-  // target
-  // <<<<<<<<<<<<<<<<
-
-  // >>>>>>>>>>>>>>>>
+  // \\\\\\\\\\\\\\\\
   // jobs
+  // ////////////////
 
   /**
-   * returns {ActionJob}
+   * Creates a new job, assigns it's id to #currJobId, and
+   * increments the job count.
+   * 
+   * @returns A new ActionJob
    */
   #newJob(): ActionJob {
-    if (this.currJobId !== false) {
+    if (this.currJob !== false) {
       throw new Error("Complete / Cancel current job before adding a new one: this.currJobId: " + this.currJobId);
     }
 
@@ -266,16 +203,21 @@ export default class ActionBase extends F42Base {
     return newJob;
   }
 
-  get currJobId(): string {
+  get currJobId(): string | false {
     return this.#currJobId;
   }
 
-  get currJob(): ActionJob {
-    return this.#jobs[this.#currJobId];
+  get currJob(): ActionJob | false {
+    if(this.#currJobId !== false){
+      return this.#jobs[this.#currJobId];
+    }
+    else{
+      return false;
+    }
   }
 
   jobWithId(jobId: number): ActionJob | boolean {
-    if (!jobId in this.#jobs) {
+    if (typeof this.#jobs[jobId] === "undefined") {
       return false;
     }
 
@@ -285,8 +227,15 @@ export default class ActionBase extends F42Base {
   /**
    * A counter of jobs run
    */
-  get jobCount(): number {
+  get jobCnt(): number {
     return this.#jobCnt;
+  }
+
+  /**
+   * Counter of jobs *completed*, not canceled
+   */
+  get compJobCnt(): number {
+    return this.#compJobCnt;
   }
 
   /**
@@ -296,11 +245,39 @@ export default class ActionBase extends F42Base {
     return Object.keys(this.#jobs).length;
   }
 
-  // jobs
-  // <<<<<<<<<<<<<<<<
+  /**
+   * Actions retrun no state of their own, but
+   * instead return state of current job, if none,
+   * then an empty job state
+   */
+  get state():JobState_Interface {
+    if(this.currJob){
+      return this.currJob.state;
+    }
+    else{
+      return getEmpty_JobState_Interface();
+    }
+  }
 
-  // >>>>>>>>>>>>>>>>
+  // \\\\\\\\\\\\\\\\
+  // misc. stat counters
+  // ////////////////
+
+  /**
+   * These are needed as jobs/messages are epehmeral
+   */
+
+  get totalAmt(): number {
+    return this.#totalAmt;
+  }
+
+  updateActionTotalAmt(jobAmt: number): void {
+    this.#totalAmt += jobAmt;
+  }
+
+  // \\\\\\\\\\\\\\\\
   // utility
+  // ////////////////
 
   /**
    * @returns {boolean}
@@ -329,8 +306,8 @@ export default class ActionBase extends F42Base {
   actionDecisionLogic(): void {
     // const lo = this.getLo("actionDecisionLogic");
 
-    if (this.status === ACT_STATUS_NO_JOB) {
-      // lo.g("ACT_STATUS_NO_JOB");
+    if (this.status === ActionStatus.NO_JOB || !this.currJob) {
+      // lo.g("ActionStatus.NO_JOB");
       this.targetAnalyse();
     }
     else if (this.currJob.isStatusInit) {
@@ -379,7 +356,7 @@ export default class ActionBase extends F42Base {
     throw new Error("ActionBase.targetAnalyse needs to be overridden");
   }
 
-  checkReceivedMsg(rcvdMsg: MsgSendInterface): boolean {
+  checkReceivedMsg(rcvdMsg: HMJobMsg_Interface): boolean {
     const lo = this.getLo("checkReceivedMsg", "CHK_JOB: %s", rcvdMsg.jobId);
 
     if (rcvdMsg.jobId in this.#jobs) {
@@ -390,11 +367,8 @@ export default class ActionBase extends F42Base {
     else {
       // bad message
       throw new MsgErrorInvalidJob(
-        this.ns.sprintf("Invalid job id: %s", this.stringify(rcvdMsg))
+        this.ns.sprintf("Invalid job id: %s", JSON.stringify(rcvdMsg, null, 2))
       );
     }
   }
-
-  // utility
-  // <<<<<<<<<<<<<<<<
 }

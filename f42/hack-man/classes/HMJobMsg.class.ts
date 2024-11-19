@@ -1,14 +1,21 @@
 import MsgBase from "/f42/classes/MsgBase.class";
 import MsgQueue from "/f42/classes/MsgQueue.class";
 import { PORT_POSTED_JOBS } from "/f42/cfg/port-defs";
+import { ActionType, JobMsgStatus, MsgObjType } from "/f42/hack-man/classes/enums";
+import { HMJobMsg_Interface, HMJobMsgResult_Interface } from "/f42/classes/helpers/interfaces";
+import { getEmpty_HMJobMsgResult } from "/f42/classes/helpers/empty-object-getters";
+import { MsgQAcceptedMsg_Type } from "/f42/classes/MsgQueueReader.class";
 
-export interface HMJobMsg_Interface {
+/**
+ * Job message for HackManager
+ */
+export default class HMJobMsg extends MsgBase implements HMJobMsg_Interface {
+  static portId: number = PORT_POSTED_JOBS;
+  status: JobMsgStatus;
   target: string;
-  actionType: string;
+  actionType: ActionType;
   metaId: string;
   jobId: string;
-  msgId: string;
-  portId: number;
   batchNum: number;
   threads: number;
   isAccepted: boolean;
@@ -16,46 +23,19 @@ export interface HMJobMsg_Interface {
   msgAcceptedTs: number;
   msgReturnedTs: number;
   result: HMJobMsgResult_Interface;
-}
 
-export interface HMJobMsgResult_Interface {
-  pid: number;
-  actionedBy: string;
-  startTs: number;
-  endTs: number;
-  startAmt: number;
-  endAmt: number;
-  amt: number;
-}
+  //   function isFoo(object: any): object is Foo {
+  //   return 'fooProperty' in object;
+  // }
 
-/**
- * Job message for HackManager
- */
-export default class HMJobMsg extends MsgBase implements HMJobMsg_Interface {
-  static portId: number = PORT_POSTED_JOBS;
-  target: string;
-  actionType: string;
-  metaId: string;
-  jobId: string;
-  batchNum: number;
-  threads: number;
-  isAccepted: boolean;
-  isReturned: boolean;
-  msgAcceptedTs: number;
-  msgReturnedTs: number;
-  result: JobMsgResult_Interface;
-
-  static preHydrate(ns: NS, rawObj: HMJobMsg_Interface): HMJobMsg | boolean {
-    if (!rawObj) {
-      return false;
-    }
-
+  static preHydrate(ns: NS, rawObj: HMJobMsg_Interface): HMJobMsg | false {
     // ns.tprintf("HMJobMsg:preHydrate: msg: %s", JSON.stringify(rawObj, null, 2));
 
     // do hydration & return
     const newMsg = new HMJobMsg(ns, "hydrating");
     newMsg.hydrate(rawObj);
     return newMsg;
+
   }
 
   constructor(ns: NS, msgId: string) {
@@ -64,6 +44,20 @@ export default class HMJobMsg extends MsgBase implements HMJobMsg_Interface {
       HMJobMsg.portId,
       new MsgQueue(ns)
     );
+
+    this.target = "";
+    this.status = JobMsgStatus.INIT;
+    this.actionType = ActionType.GROW;
+    this.metaId = "";
+    this.jobId = "";
+    this.batchNum = 0;
+    this.threads = 0;
+    this.isAccepted = false;
+    this.isReturned = false;
+    this.msgAcceptedTs = 0;
+    this.msgReturnedTs = 0;
+    this.msgReturnedTs = 0;
+    this.result = getEmpty_HMJobMsgResult();
   }
 
   /**
@@ -73,51 +67,47 @@ export default class HMJobMsg extends MsgBase implements HMJobMsg_Interface {
     return super.msgPort;
   }
 
+  get msgType(): MsgObjType {
+    return MsgObjType.JOB;
+  }
+
   serialize(): HMJobMsg_Interface {
     // return data including any inherited
     return {
       ...super.serialize(),
+      msgType: this.msgType,
       target: this.target,
+      status: this.status,
       actionType: this.actionType,
       metaId: this.metaId,
       jobId: this.jobId,
       batchNum: this.batchNum,
       threads: this.threads,
-      isAccepted: this.isAccepted,
-      isReturned: this.isReturned,
-      msgAcceptedTs: this.msgAcceptedTs,
-      msgReturnedTs: this.msgReturnedTs,
       result: this.result,
     };
   }
 
-  hydrate(rawObj: HMJobMsg_Interface): HMJobMsg {
+  hydrate(rawObj: HMJobMsg_Interface): void {
     if (
       typeof rawObj.target === "undefined"
+      || typeof rawObj.status === "undefined"
       || typeof rawObj.actionType === "undefined"
       || typeof rawObj.metaId === "undefined"
       || typeof rawObj.jobId === "undefined"
       || typeof rawObj.batchNum === "undefined"
       || typeof rawObj.threads === "undefined"
-      || typeof rawObj.isAccepted === "undefined"
-      || typeof rawObj.isReturned === "undefined"
-      || typeof rawObj.msgAcceptedTs === "undefined"
-      || typeof rawObj.msgReturnedTs === "undefined"
       || typeof rawObj.result === "undefined"
     ) {
       throw new Error("HMJobMsg.hydrate: Invalid data: " + JSON.stringify(rawObj, null, 2));
     }
     else {
       this.target = rawObj.target;
+      this.status = rawObj.status;
       this.actionType = rawObj.actionType;
       this.metaId = rawObj.metaId;
       this.jobId = rawObj.jobId;
       this.batchNum = rawObj.batchNum;
       this.threads = rawObj.threads;
-      this.isAccepted = rawObj.isAccepted;
-      this.isReturned = rawObj.isReturned;
-      this.msgAcceptedTs = rawObj.msgAcceptedTs;
-      this.msgReturnedTs = rawObj.msgReturnedTs;
       this.result = rawObj.result;
     }
 

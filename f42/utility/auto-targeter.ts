@@ -12,7 +12,7 @@ const AT_LEV_MULTI = 0.75;
 interface AT_OpVarsInterface {
   msgScktReader: MsgSocketReader
   minSrvMoney: number;
-  targetList: string[];
+  targetList: string[] | false;
   dBugStr: string[];
 }
 

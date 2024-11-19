@@ -1,15 +1,14 @@
-import { ClFlagDef_Type } from '/f42/classes/f42-cl-flag-def-class';
-import F42Feedback from '/f42/classes/f42-feedback-class';
-import { timestampAsBase62Str } from "f42/utility/utility-functions";
+import FeedbackRenderer from "./FeedbackRenderer";
+import { timestampAsBase62Str } from "/f42/utility/utility-functions";
 
-const F42Logger_DEBUG = false; // set true to prepend all logs/feedbacks with identifier
+const Logger_DEBUG = false; // set true to prepend all logs/feedbacks with identifier
 
 /**
  * Utility class to control logging
  */
-export default class F42Logger {
+export default class Logger {
   #ns: NS;
-  #feedback: F42Feedback | undefined;
+  #feedback: FeedbackRenderer | undefined;
   #feedbackKey: string | undefined;
   #firstCall = true; // flag for displaying title on first call
 
@@ -19,7 +18,7 @@ export default class F42Logger {
   #doTail = false // true: auto open tail, false no tail; can only be true if this.#toTerminal == false
   #tailTitle: string | false = false; // title of the tail window (if using it); false then will default to title, otherwise set a string
   #tailWidth = 0;
-  #tailHeight = 0;
+  #tailHeight = 0; //
 
   constructor(ns: NS, writeLog = false, toTerminal = true, doTail = false, tailTitle: string | false = false, disableSystemLog = false) {
     this.#ns = ns;
@@ -41,14 +40,14 @@ export default class F42Logger {
   }
 
   get isDebug(): boolean {
-    return F42Logger_DEBUG;
+    return Logger_DEBUG;
   }
 
   get ns(): NS {
     return this.#ns;
   }
 
-  get feedback(): F42Feedback | undefined {
+  get feedback(): FeedbackRenderer | undefined {
     return this.#feedback;
   }
 
@@ -84,7 +83,7 @@ export default class F42Logger {
   }
 
   toString(): string {
-    return this.#ns.sprintf("F42Logger");
+    return this.#ns.sprintf("Logger");
   }
 
   /**
@@ -111,25 +110,16 @@ export default class F42Logger {
   /**
    * Init and return the feebback object
    * 
-   * @return {F42Feedback} - The feedback object
+   * @return The feedback object
    */
-  initFeedback(title: string, desc: string, flagHelpArr: ClFlagDef_Type[] = []): F42Feedback | false {
+  initFeedback(title: string, desc: string): FeedbackRenderer {
     if (this.#feedback) {
-      throw new Error("!! F42Logger.initFeedback: feedback object already initialised!");
+      throw new Error("!! Logger.initFeedback: feedback object already initialised!");
     }
 
     // generate a feedback key and create fb object
     this.#feedbackKey = timestampAsBase62Str();
-    this.#feedback = F42Feedback.feedbackFactory(this, this.#feedbackKey, title, desc, flagHelpArr);
-
-    if (this.#feedback.printHelpAndEnd()) {
-      // stop further execution
-      return false;
-    }
-    else if (this.#feedback.printFlagErrorsAndEnd()) {
-      // stop further execution
-      return false;
-    }
+    this.#feedback = FeedbackRenderer.feedbackFactory(this, this.#feedbackKey, title, desc);
 
     // no help or errors, return feedback object
     return this.#feedback;
@@ -182,15 +172,15 @@ export default class F42Logger {
    */
   doFeedback(feedbackKey: string, msgTemplate: string, ...msgArgs: any[]): boolean {
     if (feedbackKey !== this.#feedbackKey) {
-      const errMsg = "!! Illegal call of F42Logger.doFeedback(): can only be called from the associated feedback object !!";
+      const errMsg = "!! Illegal call of Logger.doFeedback(): can only be called from the associated feedback object !!";
       this.#ns.print(errMsg);
       throw new Error(errMsg);
     }
 
     if (!this.#feedback) return false;
 
-    if (F42Logger_DEBUG) {
-      msgTemplate = this.#ns.sprintf("F42Feedback >> %s", msgTemplate);
+    if (Logger_DEBUG) {
+      msgTemplate = this.#ns.sprintf("FeedbackRenderer >> %s", msgTemplate);
     }
 
     this.#doLog(msgTemplate, ...msgArgs);
@@ -204,8 +194,8 @@ export default class F42Logger {
   #doLog(msgTemplate: string, ...msgArgs: any[]): void {
     this.doFirstCall();
 
-    if (F42Logger_DEBUG) {
-      msgTemplate = this.#ns.sprintf("F42Logger >> %s", msgTemplate);
+    if (Logger_DEBUG) {
+      msgTemplate = this.#ns.sprintf("Logger >> %s", msgTemplate);
     }
 
     if (this.#doTail || !this.#toTerminal) {

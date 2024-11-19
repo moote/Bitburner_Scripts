@@ -1,4 +1,7 @@
+import { HMStateMsg_Interface, HMTgtSrvListMsg_Interface, MsgObjData_Interface } from "/f42/classes/helpers/interfaces";
 import MsgSocket from "/f42/classes/MsgSocket.class";
+
+type MsgScktAcceptedMsg_Type = HMTgtSrvListMsg_Interface | HMStateMsg_Interface;
 
 /**
  * A message queue that is fixed to one port,
@@ -7,23 +10,28 @@ import MsgSocket from "/f42/classes/MsgSocket.class";
 export class MsgSocketReader extends MsgSocket {
   #portId: number;
 
-  constructor(ns: NS, portId:number){
+  constructor(ns: NS, portId:number|string){
     super(ns);
+
+    if(typeof portId === "string"){
+      portId = parseInt(portId);
+    }
+
     this.#portId = portId;
   }
 
   /**
    * @deprecated This is a read only queue; do not use
    */
-  pushMessage(msgObj: MsgObjInterface): boolean {
+  pushMessage(msgObj: MsgScktAcceptedMsg_Type): boolean {
     throw new Error("This queue is for reading only! " + msgObj.msgId);
   }
 
-  popMessage(): MsgObjInterface | boolean {
+  popMessage(): MsgScktAcceptedMsg_Type | boolean {
     return super.popMessage(this.#portId);
   }
 
-  peekMessage(): MsgObjInterface | boolean {
+  peekMessage(): MsgScktAcceptedMsg_Type | boolean {
     return super.peekMessage(this.#portId);
   }
 }

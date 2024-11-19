@@ -101,7 +101,7 @@ export default class ThrallInfector {
     this.#feedback = feedback;
 
     // kill running versions of this script
-    this.#killInfectPS(HOME);
+    this.#killInfectPS();
 
     // start at true as that is state we will be in
     // after clean start

@@ -1,34 +1,33 @@
 import F42Logger from "f42/classes/f42-logger-class";
 import { randomBase62Str } from "f42/utility/utility-functions";
 import F42Feedback from "/f42/classes/f42-feedback-class";
-import HMJobMsg, { HMJobMsg_Interface } from "/f42/hack-man/classes/HMJobMsg.class";
+import { HMJobMsg_Interface } from "/f42/classes/helpers/interfaces";
 // import F42ClFlagDef from "f42/classes/f42-cl-flag-def-class";
 
 const DUMMY_MSG_FILE = "/f42/dummy-msg.js";
 const PORT_ID = 10;
 
 /** @param {NS} ns */
-export async function main(ns: NS): void {
+export async function main(ns: NS) {
   // const foo = {msgId: "msgId_AcPWMi"};
   // ns.write(DUMMY_MSG_FILE, JSON.stringify(foo), "w");
   // return;
 
-  const msgData: HMJobMsg_Interface = ns.read(DUMMY_MSG_FILE);
-  ns.tprintf("TEST: (port: %d) Sending dummy job >>  msgData: %s", PORT_ID, msgData);
+  const msgData: HMJobMsg_Interface = JSON.parse(ns.read(DUMMY_MSG_FILE));
+  ns.tprintf("TEST: (port: %d) Sending dummy job >>  msgData: %s", PORT_ID, JSON.stringify(msgData, null, 2));
 
   const mqPortHandle = ns.getPortHandle(10);
   if (!mqPortHandle) {
     throw new Error(ns.sprintf("!! Error getting port handle: %d", PORT_ID));
   }
-  mqPortHandle.tryWrite(JSON.parse(msgData));
+  mqPortHandle.tryWrite(msgData);
 }
 
-function classTest(ns:NS){
+function classTest(ns: NS) {
   const scriptTitle = "TS Test";
   const logger = new F42Logger(ns, true, true, false, scriptTitle, false);
   const scriptDescription = "";
-  const scriptFlags = [];
-  const feedback = logger.initFeedback(scriptTitle, scriptDescription, scriptFlags);
+  const feedback = logger.initFeedback(scriptTitle, scriptDescription);
   if (!feedback) {
     return;
   }
@@ -62,7 +61,8 @@ class Child {
 
   constructor(name: string, badgeCol: BadgeColour) {
     this.#name = name;
-    this.#badgeCol = badgeCol
+    this.#badgeCol = badgeCol;
+    this.#playroomId = "";
   }
 
   get name(): string {
@@ -88,7 +88,7 @@ class Playroom {
   #name: string;
   #maxCapacity: number;
   #currCapacity: number;
-  #children: { [key: string]: Child; };
+  #children: { [key: string]: Child };
 
   constructor(feedback: F42Feedback, name: string, maxCapacity: number) {
     this.#ns = feedback.ns;
@@ -153,7 +153,7 @@ class Playroom {
     }
   }
 
-  removeChildById(reqId): Child | boolean {
+  removeChildById(reqId: string): Child | boolean {
     if (reqId in this.#children) {
       this.#currCapacity--;
       return this.#children[reqId];
@@ -166,7 +166,8 @@ class Playroom {
   removeChildrenByName(name: string): Child[] | boolean {
     const childArr = [];
 
-    for (const child of this.#children) {
+    for (const childId in this.#children) {
+      const child = this.#children[childId];
       if (child.name == name) childArr.push(child);
     }
 

@@ -1,4 +1,4 @@
-import { F42_RES_PORTS, MsgObjInterface } from "/f42/cfg/port-defs";
+import { F42_RES_PORTS, MsgObjData_Interface } from "/f42/cfg/port-defs";
 
 export default class MessageQueue {
   /**
@@ -7,7 +7,7 @@ export default class MessageQueue {
    * 
    * Throws exceptions on other errors.
    */
-  static pushMessage(ns: NS, msgObj: MsgObjInterface): boolean {
+  static pushMessage(ns: NS, msgObj: MsgObjData_Interface): boolean {
     if (!F42MessageStack.validateStack(msgObj.portId)) {
       throw new Error(ns.sprintf("!! Not a valid message stack port: %d", msgObj.portId));
     }
@@ -27,7 +27,7 @@ export default class MessageQueue {
    * 
    * Throws exceptions on other errors.
    */
-  static popMessage(ns: NS, portId: number): MsgObjInterface | boolean {
+  static popMessage(ns: NS, portId: number): MsgObjData_Interface | boolean {
     if (!F42MessageStack.validateStack(portId)) {
       throw new Error(ns.sprintf("!! Not a valid message stack port: %d", portId));
     }
@@ -50,7 +50,7 @@ export default class MessageQueue {
   /**
    * Return peek from requested mesage stack port id
    */
-  static peekMessage(ns: NS, portId: number): MsgObjInterface | boolean {
+  static peekMessage(ns: NS, portId: number): MsgObjData_Interface | boolean {
     if (!F42MessageStack.validateStack(portId)) {
       throw new Error(ns.sprintf("!! Not a valid message stack port: %d", portId));
     }

@@ -1,68 +1,55 @@
 import MsgBase from "/f42/classes/MsgBase.class";
 import MsgQueue from "/f42/classes/MsgQueue.class";
-import { PORT_HM_CTRL } from "/f42/cfg/port-defs";
 import { Server } from "@ns";
 import { timestampAsBase62Str } from "/f42/utility/utility-functions";
-
-const MSG_ACT_ADD_TS = "add-ts";
-const MSG_ACT_RM_TS = "rm-ts";
-const MSG_ACT_CLEAR_ACTIONS = "clear-actions";
-const MSG_ACT_ORDER_66 = "ORDER-66";
+import { CtrlMsgAct, HMOpMode, MsgObjType, TgtSrvOpMode } from "/f42/hack-man/classes/enums";
+import { HMCtrlMsg_Interface, HMCtrlMsgPayload_Interface } from "/f42/classes/helpers/interfaces";
+import { PORT_HM_CTRL } from "/f42/cfg/port-defs";
+import { getEmpty_HMCtrlMsg } from "/f42/classes/helpers/empty-object-getters";
 
 const SRV_COMP_FILE_PATH = "/f42/utility/compromise-server.js";
-
-interface HMCtrlMsg_Interface {
-  action: string,
-  payload: Server | string | boolean,
-}
 
 /**
  * Base control message for HackManager
  */
 export class HMCtrlMsg extends MsgBase implements HMCtrlMsg_Interface {
   static portId: number = PORT_HM_CTRL;
-  static ACT_ADD_TS: string = MSG_ACT_ADD_TS;
-  static ACT_RM_TS: string = MSG_ACT_RM_TS;
-  static ACT_CLEAR_ACTIONS: string = MSG_ACT_CLEAR_ACTIONS;
-  static ACT_ORDER_66: string = MSG_ACT_ORDER_66;
 
-  #action: string;
-  #payload: Server | string | boolean;
+  #action: CtrlMsgAct;
 
-  static preHydrate(ns: NS, rawObj: HMCtrlMsg_Interface): HMCtrlMsg | boolean {
-    if (!rawObj) {
-      return false;
+  static preHydrate(ns: NS, rawObj: HMCtrlMsg_Interface): HMCtrlMsg | false {
+
+    let newMsg: HMCtrlMsg;
+
+    switch (rawObj.action) {
+      case CtrlMsgAct.ADD_TS:
+        newMsg = new HMCtrlMsg_ADD_TS(ns, getEmpty_HMCtrlMsg());
+        break;
+      case CtrlMsgAct.RM_TS:
+        newMsg = new HMCtrlMsg_RM_TS(ns, "");
+        break;
+      case CtrlMsgAct.CLEAR_ACTIONS:
+        newMsg = new HMCtrlMsg_CLEAR_ACTIONS(ns);
+        break;
+      case CtrlMsgAct.CHANGE_OP_MODE:
+        newMsg = new HMCtrlMsg_CHANGE_OP_MODE(ns, HMOpMode.HACK);
+        break;
+      case CtrlMsgAct.CHANGE_TT_MODE:
+        newMsg = new HMCtrlMsg_CHANGE_TT_MODE(ns, TgtSrvOpMode.MONEY_MAX);
+        break;
+      default:
+        throw new Error("HMCtrlMsg.preHydrate: Invalid rawObj.action: " + JSON.stringify(rawObj, null, 2));
     }
-    else if (
-      typeof rawObj.action === "undefined"
-      || typeof rawObj.payload === "undefined"
-    ) {
-      throw new Error("CtrlMsg.hydrate: Invalid data: " + JSON.stringify(rawObj, null, 2));
-    }
-    else {
-      let newMsg: HMCtrlMsg;
 
-      switch (rawObj.action) {
-        case MSG_ACT_ADD_TS:
-          newMsg = new HMCtrlMsg_ADD_TS(ns, {});
-          break;
-        case MSG_ACT_RM_TS:
-          newMsg = new HMCtrlMsg_RM_TS(ns, "");
-          break;
-        case MSG_ACT_CLEAR_ACTIONS:
-          newMsg = new HMCtrlMsg_CLEAR_ACTIONS(ns);
-          break;
-        default:
-          throw new Error("HMCtrlMsg.preHydrate: Invalid rawObj.action: " + JSON.stringify(rawObj, null, 2));
-      }
-
-      // do hydration & return
-      newMsg.hydrate(rawObj);
-      return newMsg;
-    }
+    // do hydration & return
+    newMsg.hydrate(rawObj);
+    return newMsg;
   }
 
-  constructor(ns: NS, action: string, payload: Server | string | boolean) {
+  constructor(
+    ns: NS,
+    action: CtrlMsgAct,
+  ) {
     super(
       timestampAsBase62Str(),
       HMCtrlMsg.portId,
@@ -70,7 +57,6 @@ export class HMCtrlMsg extends MsgBase implements HMCtrlMsg_Interface {
     );
 
     this.#action = action;
-    this.#payload = payload;
   }
 
   /**
@@ -80,33 +66,29 @@ export class HMCtrlMsg extends MsgBase implements HMCtrlMsg_Interface {
     return super.msgPort;
   }
 
-  get action(): string {
-    return this.#action;
+  get msgType(): MsgObjType {
+    return MsgObjType.CTRL;
   }
 
-  get payload(): Server | string | boolean {
-    return this.#payload;
+  get action(): CtrlMsgAct {
+    return this.#action;
   }
 
   serialize(): HMCtrlMsg_Interface {
     // return data including any inherited
     return {
       ...super.serialize(),
+      msgType: this.msgType,
       action: this.action,
-      payload: this.payload,
     };
   }
 
-  hydrate(rawObj: HMCtrlMsg_Interface): HMCtrlMsg {
-    if (
-      typeof rawObj.action === "undefined"
-      || typeof rawObj.payload === "undefined"
-    ) {
+  hydrate(rawObj: HMCtrlMsg_Interface): void {
+    if (typeof rawObj.action === "undefined") {
       throw new Error("CtrlMsg.hydrate: Invalid data: " + JSON.stringify(rawObj, null, 2));
     }
     else {
       this.#action = rawObj.action;
-      this.#payload = rawObj.payload;
     }
 
     // pass down for remainder of fields processing
@@ -117,7 +99,9 @@ export class HMCtrlMsg extends MsgBase implements HMCtrlMsg_Interface {
 /**
  * Add server control message object for HackManager
  */
-export class HMCtrlMsg_ADD_TS extends HMCtrlMsg {
+export class HMCtrlMsg_ADD_TS extends HMCtrlMsg implements HMCtrlMsgPayload_Interface {
+  #payload: Server;
+
   /**
    * Factory helper function for push
    * 
@@ -142,18 +126,22 @@ export class HMCtrlMsg_ADD_TS extends HMCtrlMsg {
   }
 
   constructor(ns: NS, payloadServer: Server) {
-    super(ns, MSG_ACT_ADD_TS, payloadServer);
+    super(ns, CtrlMsgAct.ADD_TS);
+
+    this.#payload = payloadServer;
   }
 
   get payload(): Server {
-    return super.payload;
+    return this.#payload;
   }
 }
 
 /**
  * Remove server control message object for HackManager
  */
-export class HMCtrlMsg_RM_TS extends HMCtrlMsg {
+export class HMCtrlMsg_RM_TS extends HMCtrlMsg implements HMCtrlMsgPayload_Interface {
+  #payload: string;
+
   /**
    * Factory helper function for push
    * 
@@ -173,18 +161,51 @@ export class HMCtrlMsg_RM_TS extends HMCtrlMsg {
   }
 
   constructor(ns: NS, payloadHostname: string) {
-    super(ns, MSG_ACT_RM_TS, payloadHostname);
+    super(ns, CtrlMsgAct.RM_TS);
+
+    this.#payload = payloadHostname;
   }
 
   get payload(): string {
-    return super.payload;
+    return this.#payload;
+  }
+}
+
+/**
+ * Pause/Unpause control message object for HackManager
+ * 
+ */
+export class HMCtrlMsg_TT_PAUSE extends HMCtrlMsg implements HMCtrlMsgPayload_Interface {
+  #payload: boolean;
+
+  /**
+   * Factory helper function for push
+   * 
+   * @param ns Bitburner NS
+   * @returns Result of push
+   */
+  static staticPush(ns: NS, doPause = true): boolean {
+    // post to queue
+    const msg = new HMCtrlMsg_TT_PAUSE(ns, doPause);
+    return msg.push();
+  }
+
+  constructor(ns: NS, doPause: boolean) {
+    super(ns, CtrlMsgAct.PAUSE);
+
+    this.#payload = doPause;
+  }
+
+  get payload(): boolean {
+    return this.#payload;
   }
 }
 
 /**
  * Clear actions control message object for HackManager
+ * @deprecated
  */
-export class HMCtrlMsg_CLEAR_ACTIONS extends HMCtrlMsg {
+export class HMCtrlMsg_CLEAR_ACTIONS extends HMCtrlMsg implements HMCtrlMsgPayload_Interface {
   /**
    * Factory helper function for push
    * 
@@ -193,15 +214,74 @@ export class HMCtrlMsg_CLEAR_ACTIONS extends HMCtrlMsg {
    */
   static staticPush(ns: NS): boolean {
     // post to queue
-    const msg = new HMCtrlMsg_RM_TS(ns);
+    const msg = new HMCtrlMsg_CLEAR_ACTIONS(ns);
     return msg.push();
   }
 
   constructor(ns: NS) {
-    super(ns, F42_MSG_ACT_CLEAR_ACTIONS, true);
+    super(ns, CtrlMsgAct.CLEAR_ACTIONS);
   }
 
+  /** Always true */
   get payload(): boolean {
     return true;
+  }
+}
+
+/**
+ * Switch operation mode to 'hack' | 'trade_target'
+ */
+export class HMCtrlMsg_CHANGE_OP_MODE extends HMCtrlMsg implements HMCtrlMsgPayload_Interface {
+  #payload: HMOpMode;
+
+  /**
+   * Factory helper function for push
+   * 
+   * @param ns Bitburner NS
+   * @returns Result of push
+   */
+  static staticPush(ns: NS, newOpMode: HMOpMode): boolean {
+    // post to queue
+    const msg = new HMCtrlMsg_CHANGE_OP_MODE(ns, newOpMode);
+    return msg.push();
+  }
+
+  constructor(ns: NS, newOpMode: HMOpMode) {
+    super(ns, CtrlMsgAct.CHANGE_OP_MODE);
+
+    this.#payload = newOpMode;
+  }
+
+  get payload(): HMOpMode {
+    return this.#payload;
+  }
+}
+
+/**
+ * Sets the server action
+ */
+export class HMCtrlMsg_CHANGE_TT_MODE extends HMCtrlMsg implements HMCtrlMsgPayload_Interface {
+  #payload: TgtSrvOpMode.MONEY_MAX | TgtSrvOpMode.MONEY_MIN;
+
+  /**
+   * Factory helper function for push
+   * 
+   * @param ns Bitburner NS
+   * @returns Result of push
+   */
+  static staticPush(ns: NS, newMode: TgtSrvOpMode.MONEY_MAX | TgtSrvOpMode.MONEY_MIN): boolean {
+    // post to queue
+    const msg = new HMCtrlMsg_CHANGE_TT_MODE(ns, newMode);
+    return msg.push();
+  }
+
+  constructor(ns: NS, newMode: TgtSrvOpMode.MONEY_MAX | TgtSrvOpMode.MONEY_MIN) {
+    super(ns, CtrlMsgAct.CHANGE_TT_MODE);
+
+    this.#payload = newMode;
+  }
+
+  get payload(): TgtSrvOpMode.MONEY_MAX | TgtSrvOpMode.MONEY_MIN {
+    return this.#payload;
   }
 }

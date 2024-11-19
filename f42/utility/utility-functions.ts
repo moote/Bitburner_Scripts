@@ -8,10 +8,10 @@ export function numberToBase62Str(currVal: number): string {
   const charset = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
   if (currVal === 0) {
-    return 0;
+    return "0";
   }
 
-  let strArr = [];
+  let strArr: string[] = [];
 
   while (currVal > 0) {
     strArr = [charset[currVal % charset.length], ...strArr];
@@ -25,10 +25,10 @@ export function numberToBase42Str(currVal: number): string {
   const charset = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdef";
 
   if (currVal === 0) {
-    return 0;
+    return "0";
   }
 
-  let strArr = [];
+  let strArr: string[] = [];
 
   while (currVal > 0) {
     strArr = [charset[currVal % charset.length], ...strArr];

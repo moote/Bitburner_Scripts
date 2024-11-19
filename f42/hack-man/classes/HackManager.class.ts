@@ -1,7 +1,7 @@
 import F42Base from '/f42/classes/F42Base.class';
 import TargetServer from '/f42/hack-man/classes/TargetServer.class';
-import F42Logger from "/f42/classes/f42-logger-class";
-import { HMCtrlMsg, HMCtrlMsg_ADD_TS, HMCtrlMsg_RM_TS, HMCtrlMsg_CLEAR_ACTIONS } from './HMCtrlMsg.class';
+import Logger from '/f42/classes/Logger.class';
+import { HMCtrlMsg, HMCtrlMsg_ADD_TS, HMCtrlMsg_RM_TS, HMCtrlMsg_CLEAR_ACTIONS, HMCtrlMsg_CHANGE_OP_MODE, HMCtrlMsg_CHANGE_TT_MODE, HMCtrlMsg_TT_PAUSE } from './HMCtrlMsg.class';
 import { HMTgtSrvListMsg } from '/f42/hack-man/classes/HMTgtSrvListMsg.class';
 import { HMStateMsg } from '/f42/hack-man/classes/HMStateMsg.class';
 import { HMCtrlMsgQReader } from '/f42/hack-man/classes/HMCtrlMsgQReader.class';
@@ -10,17 +10,23 @@ import { ReceivedMessageException } from '/f42/hack-man/classes/MsgException.cla
 import { timestampAsBase62Str } from '/f42/utility/utility-functions';
 import { Server } from '@ns';
 import HMJobMsg from '/f42/hack-man/classes/HMJobMsg.class';
+import { HMOpMode, HMTradeTargetState, TgtSrvOpMode, TgtSrvOpModeStatus, TgtSrvStatus } from '/f42/hack-man/classes/enums';
+import { HMMeta_Interface, HMState_Interface } from '/f42/classes/helpers/interfaces';
 
 // see for details HackManager.init
 const HMO_META_V = 4;
 const HMO_SRV_V = 4;
 
 export default class HackManager extends F42Base {
-  #meta;
-  #tgtList;
+  #meta!: HMMeta_Interface;
+  #tgtList!: {[key: string]: TargetServer};
   #shouldKill = false; // used for dev/testing/debug
-  #mqrCtrlMsgs: HMCtrlMsgQReader;
-  #mqrCompJobMsgs: HMCompJobQReader;
+  #mqrCtrlMsgs!: HMCtrlMsgQReader;
+  #mqrCompJobMsgs!: HMCompJobQReader;
+
+  #opMode: HMOpMode;
+  #tradeTgtSrv: TargetServer | undefined;
+  #tradeTgtState: HMTradeTargetState;
 
   /**
    * @deprecated Use HMCtrlMsg_ADD_TS.staticPush() directly
@@ -46,24 +52,29 @@ export default class HackManager extends F42Base {
     return HMCtrlMsg_CLEAR_ACTIONS.staticPush(ns);
   }
 
-  static factory(logger: F42Logger): HackManager {
+  static factory(logger: Logger): HackManager {
     logger.ns.printf("LOADING EMPTY");
     return new HackManager(logger);
   }
 
-  constructor(logger: F42Logger) {
+  constructor(logger: Logger) {
     super(logger);
     this.#vaildateSingleton();
+    this.#opMode = HMOpMode.HACK;
+    this.#tradeTgtState = HMTradeTargetState.NO_TARGET
     this.#init();
 
     // set logging restrictions
     // this.allowedLogFunctions = [];
     this.allowedLogFunctions = [
-      // "chkCtrlMsgQueue",
+      "chkCtrlMsgQueue",
       // "dqReceivedMessages",
-      // "addTgtSrv",
+      "addTgtSrv",
+      "deleteTgtSrv",
       // "postTargetList",
       // "mainLoop",
+      "changeOpMode",
+      "changeTgtSrvOpMode",
     ];
     this.onlyVerboseLogs = true;
   }
@@ -77,29 +88,23 @@ export default class HackManager extends F42Base {
    *                        drop any incoming messages with a mismatched version
    */
   #init(): void {
+    // add metadata
     this.#meta = {
       ver: HMO_META_V,  // see desc
       sVer: HMO_SRV_V,  // see desc
-      id: "pending",        // see desc
+      id: timestampAsBase62Str(),        // see desc
       initTs: Date.now(),
     };
 
-    // add metadata
-    this.#updateMetaId();
-
     // init incoming msg queues
-    this.#mqrCtrlMsgs = new HMCtrlMsgQReader(this.ns);
-    this.#mqrCompJobMsgs = new HMCompJobQReader(this.ns);
+    if(!this.#mqrCtrlMsgs) this.#mqrCtrlMsgs = new HMCtrlMsgQReader(this.ns);
+    if(!this.#mqrCompJobMsgs) this.#mqrCompJobMsgs = new HMCompJobQReader(this.ns);
 
     // init empty target list
     this.#tgtList = {};
 
     // update target list port
     this.#postTargetList();
-  }
-
-  #updateMetaId(): void {
-    this.#meta.id = timestampAsBase62Str();
   }
 
   /**
@@ -131,9 +136,14 @@ export default class HackManager extends F42Base {
     // check target server message queue
     this.#chkCtrlMsgQueue();
 
-    // // parse target servers
-    // // generate new actions / process running ones
-    this.#parseServers();
+    if (this.#opMode === HMOpMode.HACK) {
+      // // parse target servers
+      // // generate new actions / process running ones
+      this.#parseServers();
+    }
+    else { // trade target
+      this.#tradeTargetCtrl();
+    }
 
     // // dequeue and test received messages
     this.#dqReceivedMessages();
@@ -149,11 +159,16 @@ export default class HackManager extends F42Base {
    */
   #chkCtrlMsgQueue(): void {
     const lo = this.getLo("chkCtrlMsgQueue");
-    let tsMsg;
 
-    while (tsMsg !== false) {
-      tsMsg = this.#mqrCtrlMsgs.popMessage();
+    while (this.#mqrCtrlMsgs.peekMessage() !== false) {
+      const tsMsg = this.#mqrCtrlMsgs.popMessage();
 
+      // lo.g("--->>> tsMsg: %s", JSON.stringify(tsMsg.payload, null, 2));
+
+      /**
+       * A message from the cotrol q should always be typ HMCtrl,
+       * but in case the q is polluted... (damn haxxors)
+       */
       if (tsMsg instanceof HMCtrlMsg) {
         // this.ns.tprintf("chkCtrlMsgQueue: %s", JSON.stringify(tsMsg.serialize(), null, 2));
         // throw new Error("STOP");
@@ -165,32 +180,45 @@ export default class HackManager extends F42Base {
         }
         else if (tsMsg instanceof HMCtrlMsg_RM_TS) {
           lo.g("Delete target server: %s", tsMsg.payload);
-
-          if (!(tsMsg.payload in this.#tgtList)) {
-            lo.g("Server not a target: %s", tsMsg.payload);
-          }
-          else {
-            // delete
-            delete this.#deleteTgtSrv(tsMsg.payload);
-          }
+          this.#deleteTgtSrv(tsMsg.payload);
         }
         else if (tsMsg instanceof HMCtrlMsg_CLEAR_ACTIONS) {
           lo.g("Clear actions - DISABLED");
           // this.#clearActions();
         }
-        else if (tsMsg instanceof HMCtrlMsg_ORDER_66) {
-          lo.g("Order 66 - NOT IMPLEMENTED");
-          // todo: NOT IMPLEMENTED
+        // else if (tsMsg instanceof HMCtrlMsg_ORDER_66) {
+        //   lo.g("Order 66 - NOT IMPLEMENTED");
+        //   // todo: NOT IMPLEMENTED
+        // }
+        else if (tsMsg instanceof HMCtrlMsg_CHANGE_OP_MODE) {
+          lo.g("Change opMode: %s", HMOpMode[tsMsg.payload]);
+          this.#changeOpMode(tsMsg.payload);
+        }
+        else if (tsMsg instanceof HMCtrlMsg_CHANGE_TT_MODE) {
+          lo.g("Change tgtSrv opMode: %s", TgtSrvOpMode[tsMsg.payload]);
+          this.#changeTgtSrvOpMode(tsMsg.payload);
+        }
+        else if (tsMsg instanceof HMCtrlMsg_TT_PAUSE) {
+          lo.g("%s TT server", tsMsg.payload === true ? "PAUSE" : "UNPAUSE");
+          // TODO:
         }
         else {
           throw new Error("!! HackManager.chkCtrlMsgQueue: Unknown message type: " + JSON.stringify(tsMsg, null, 2));
         }
+      }
+      else{
+        // the q is polluted, not good
+        throw new Error("!! Non HMCtrlMsg found on queue, bad 👎 : " + JSON.stringify(tsMsg, null, 2));
       }
     }
   }
 
   #parseServers(): void {
     this.getLo("parseServers");
+
+    if (this.#opMode !== HMOpMode.HACK) {
+      throw new Error("HackManager.#parseServers: Can't call when not in 'hack' op mode: this.#opMode: " + this.#opMode);
+    }
 
     for (const tgtSrvHostname in this.#tgtList) {
       // get target from list
@@ -204,12 +232,47 @@ export default class HackManager extends F42Base {
     }
   }
 
+  #tradeTargetCtrl(): void {
+    const lo = this.getLo("tradeTargetCtrl");
+
+    if (this.#opMode !== HMOpMode.TRADE_TGT) {
+      throw new Error("HackManager.#tradeTargetCtrl: Can't call when not in 'trade target' op mode: this.#opMode: " + this.#opMode);
+    }
+
+    // update state
+    this.#updateTradeTargetState();
+
+    // render details
+    // const fb: FeedbackRenderer = this.logger.feedback;
+    // fb.title = "Trade Target Mode";
+    // // this.ns.clearLog();
+    // fb.printTitle(false);
+
+    // if(this.#tradeTgtSrv){
+    //   const srvObj = this.#tradeTgtSrv.srvObj;
+    //   fb.printHiLi("Target: %s", this.#tradeTgtSrv.hostname);
+    //   fb.printHiLi("Op Mode: %s", this.#tradeTgtSrv.opModeStr);
+    //   fb.printHiLi("Srv Status: %s", this.#tradeTgtSrv.statusStr);
+    //   fb.printHiLi("TT State: %s", HMTradeTargetState[this.#tradeTgtState]);
+    //   fb.printHiLi("*Tgt OpMode Status*: %s", this.#tradeTgtSrv.opModeStatus);
+    //   fb.print("Max money: ", this.ns.formatNumber(srvObj.moneyMax));
+    //   fb.print("Curr money: ", this.ns.formatNumber(srvObj.moneyMax));
+    //   fb.print("Base hack lev: ", this.ns.formatNumber(srvObj.baseDifficulty));
+    //   fb.print("Min hack lev: ", this.ns.formatNumber(srvObj.minDifficulty));
+    //   fb.print("Curr hack lev: ", this.ns.formatNumber(srvObj.hackDifficulty));
+    // }
+    // else{
+    //   fb.printSubTitle("Awaiting target...");
+    // }
+
+    // fb.printLineSeparator();
+    // fb.print(getActivityVisStr(this.ns, ">>>>"));
+  }
+
   /**
    * Dequeue messages and pass down the chain, validating along the way:
    * 
    * HackManager >> TargetServer >> BaseAction >> ActionJob
-   * 
-   * 
    */
   #dqReceivedMessages(): void {
     const lo = this.getLo("dqReceivedMessages");
@@ -227,7 +290,7 @@ export default class HackManager extends F42Base {
 
       // queue empty
       if (!(rcvdMsg instanceof HMJobMsg)) {
-      // if (rcvdMsg == false) {
+        // if (rcvdMsg == false) {
         lo.g("EMPTY_MSG_QUEUE: BREAK");
         break;
       }
@@ -279,12 +342,103 @@ export default class HackManager extends F42Base {
       }
       else {
         // no matches or errors, log and drop
-        lo.g("Dropping message no target match: rcvdMsg:\n%s", this.stringify(rcvdMsg));
+        lo.g("Dropping message no target match: rcvdMsg:\n%s", JSON.stringify(rcvdMsg, null, 2));
       }
     }
 
     lo.g("%d messages dequeued", dqCnt);
     lo.g("%d messages matched", messageMatchCnt);
+  }
+
+  ///////////////////////
+  // Op Mode
+  ///////////////////////
+
+  #changeOpMode(newMode: HMOpMode): void {
+    const lo = this.getLo("changeOpMode");
+
+    if(this.#opMode === newMode){
+      lo.g("Already in requested mode: %s === %s", this.#opMode, newMode);
+    }
+    else if(newMode === HMOpMode.HACK){
+      // reset
+      this.#init();
+
+      // change mode
+      this.#opMode = newMode;
+    }
+    else if(newMode === HMOpMode.TRADE_TGT){
+      // reset
+      this.#init();
+
+      // change mode
+      this.#opMode = newMode;
+    }
+    else{
+      throw lo.gThrowErr("HackManager.#switchOpMode: Invalid OpMode requested! %s", newMode);
+    }
+  }
+
+  ////////////////////////
+  // Trade target functions
+  ///////////////////////
+
+  #changeTgtSrvOpMode(newMode: TgtSrvOpMode): void {
+    const lo = this.getLo("changeTgtSrvOpMode", "newMode: %s", newMode);
+    if(this.#tradeTgtSrv){
+      switch(newMode){
+        case TgtSrvOpMode.FREE:
+          // can't change to this while a trade target
+          lo.g("ERROR Can't change a trade target to TgtSrvOpMode.FREE");
+          break;
+        case TgtSrvOpMode.MONEY_MAX:
+          lo.g("Changing to MONEY_MAX");
+          this.#tradeTgtSrv.changeOpMode(newMode);
+          break;
+        case TgtSrvOpMode.MONEY_MIN:
+          lo.g("Changing to MONEY_MIN");
+          this.#tradeTgtSrv.changeOpMode(newMode);
+          break;
+        default:
+          throw new Error("changeTgtSrvOpMode: Invalid TgtSrvOpMode: %s" + newMode);
+      }
+    }
+    else{
+      // do nothing  
+      lo.g("No target server: %s", this.#tradeTgtState);
+    }
+  }
+
+  #updateTradeTargetState(): void {
+    if(!this.#tradeTgtSrv){
+      this.#tradeTgtState = HMTradeTargetState.NO_TARGET;
+      return;
+    }
+
+    switch(this.#tradeTgtSrv.opModeStatus){
+      case TgtSrvOpModeStatus.PAUSED:
+        this.#tradeTgtState = HMTradeTargetState.TARGET_AWAITING_ORDER;
+        break;
+      case TgtSrvOpModeStatus.FREE:
+        this.#tradeTgtState = HMTradeTargetState.TARGET_AWAITING_ORDER;
+        break;
+      case TgtSrvOpModeStatus.IN_PROGRESS:
+        if(this.#tradeTgtSrv.opMode === TgtSrvOpMode.MONEY_MAX){
+          this.#tradeTgtState = HMTradeTargetState.TARGET_GROW_TO_MAX;
+        }
+        else{
+          this.#tradeTgtState = HMTradeTargetState.TARGET_HACK_TO_MIN;
+        }
+        break;
+      default: // TgtSrvOpModeStatus.DONE
+        if(this.#tradeTgtSrv.opMode === TgtSrvOpMode.MONEY_MAX){
+          this.#tradeTgtState = HMTradeTargetState.TARGET_AT_MAX;
+        }
+        else{
+          this.#tradeTgtState = HMTradeTargetState.TARGET_AT_MIN;
+        }
+        break;
+    }
   }
 
   ////////////////////////
@@ -297,7 +451,7 @@ export default class HackManager extends F42Base {
    * @param {Server} srvObj 
    * @returns {(TargetServer|boolean)} New instance of TargetServer, false if not added, error will be logged
    */
-  #addTgtSrv(srvObj: Server): void {
+  #addTgtSrv(srvObj: Server): TargetServer | false {
     const lo = this.getLo("addTgtSrv", "hostname: " + srvObj.hostname);
 
     // see if already in list
@@ -307,14 +461,26 @@ export default class HackManager extends F42Base {
     }
 
     // try to init TargetServer
-    let tgtSrv = false;
+    let tgtSrv: TargetServer | false = false;
 
     try {
-      tgtSrv = new TargetServer(this.logger, srvObj.hostname, this.#meta.id);
+      if(this.#opMode === HMOpMode.TRADE_TGT){
+        tgtSrv = new TargetServer(
+          this.logger,
+          srvObj.hostname,
+          this.#meta.id,
+          TgtSrvStatus.PAUSED,
+          TgtSrvOpMode.MONEY_MAX
+        );
+      }
+      else{
+        tgtSrv = new TargetServer(this.logger, srvObj.hostname, this.#meta.id);
+      }
+      
     }
     catch (e) {
       // either invalid hostname, or no root; see error
-      lo.g("Target not added: %s", e.message);
+      lo.g("Target not added: %s", (e as Error).message);
       return false;
     }
 
@@ -323,6 +489,12 @@ export default class HackManager extends F42Base {
 
     // update target list port
     this.#postTargetList();
+
+    // if in trade target mode, then link
+    if(this.#opMode === HMOpMode.TRADE_TGT){
+      this.#tradeTgtSrv = tgtSrv;
+      this.#updateTradeTargetState();
+    }
 
     // return
     return tgtSrv;
@@ -357,8 +529,24 @@ export default class HackManager extends F42Base {
    * @param {string} hostname Server hostname
    */
   #deleteTgtSrv(hostname: string): void {
-    this.getLo("deleteTgtSrv", "hostname: " + hostname);
-    delete this.#tgtList[hostname];
+    const lo = this.getLo("deleteTgtSrv", "hostname: %s", hostname);
+    
+    if (hostname in this.#tgtList) {
+      // if in trade target mode, then unlink
+      if(this.#opMode === HMOpMode.TRADE_TGT){
+        this.#tradeTgtSrv = undefined;
+        this.#updateTradeTargetState();
+      }
+
+      delete this.#tgtList[hostname];
+
+      // update target list port
+      this.#postTargetList();
+    }
+    else {
+      // delete
+      lo.g("Server not a target: %s", hostname);
+    }
   }
 
   ////////////////////////
@@ -368,14 +556,14 @@ export default class HackManager extends F42Base {
   #updateStateView(): void {
     this.getLo("updateStateView");
 
-    const state = {
+    const state: HMState_Interface = {
       meta: this.#meta,
       targets: {},
       gen: timestampAsBase62Str()
     };
 
     for (const hostname in this.#tgtList) {
-      state.targets[hostname] = this.#tgtList[hostname].stats;
+      state.targets[hostname] = this.#tgtList[hostname].state;
     }
 
     // send state
@@ -401,10 +589,8 @@ export default class HackManager extends F42Base {
     for (const tgtSrvHost in this.#tgtList) {
       const tgtSrv = this.#getTgtSrv(tgtSrvHost);
 
-      // set all to completed to force reset of actions
-      tgtSrv.actions[F42_HACK_ACTION_WEAK].status = F42_ACTION_STATUS_COMPLETED;
-      tgtSrv.actions[F42_HACK_ACTION_GROW].status = F42_ACTION_STATUS_COMPLETED;
-      tgtSrv.actions[F42_HACK_ACTION_HACK].status = F42_ACTION_STATUS_COMPLETED;
+      // cancel active job
+      tgtSrv.cancelActiveJob();
     }
 
     // update op ts to invalidate all outstanding jobs

@@ -1,7 +1,7 @@
 import { NetscriptPort } from "@ns";
 import F42Logger from "/f42/classes/f42-logger-class";
 import F42Base from "/f42/classes/F42Base.class";
-import MessageStack, { MsgObjInterface } from "/f42/classes/MessageStack.class";
+import MessageStack, { MsgObjData_Interface } from "/f42/classes/MessageStack.class";
 import { timestampAsBase62Str } from '/f42/utility/utility-functions';
 import * as f42PortDefs from "f42/cfg/port-defs";
 
@@ -173,13 +173,13 @@ export class F42PortHandle extends F42Base {
 --------`);
   }
 
-  write(value: MsgObjInterface): boolean {
+  write(value: MsgObjData_Interface): boolean {
     const fnN = "write";
     this.log(fnN, JSON.stringify(value));
     return this.#nsPortHandle.tryWrite(value);
   }
 
-  read(): MsgObjInterface | boolean {
+  read(): MsgObjData_Interface | boolean {
     this.log("read");
     const result = this.#nsPortHandle.read();
 
@@ -190,7 +190,7 @@ export class F42PortHandle extends F42Base {
     return result;
   }
 
-  peek(): MsgObjInterface | boolean {
+  peek(): MsgObjData_Interface | boolean {
     this.log("peek");
     const result = this.#nsPortHandle.peek();
 

@@ -44,3 +44,11 @@ alias hm-run="run /f42/hack-man/hack-manager.js";
 alias hm-add-target="run /f42/utility/add-target-server.js";
 alias auto-target="run /f42/utility/auto-targeter.js";
 alias hm-state="run /f42/utility/hm-state.js";
+
+```New controller aliases
+alias hmc-add-tgt="run /f42/utility/hm-control.js --add-tgt";
+alias hmc-rm-tgt="run /f42/utility/hm-control.js --rm-tgt";
+alias hmc-om-hack="run /f42/utility/hm-control.js --om-hack";
+alias hmc-om-trade-tgt="run /f42/utility/hm-control.js --om-trade-tgt";
+alias hmc-tt-grow-max="run /f42/utility/hm-control.js --tt-grow-max";
+alias hmc-tt-hack-min="run /f42/utility/hm-control.js --tt-hack-min";

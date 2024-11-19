@@ -1,11 +1,12 @@
-import ActionBase, { ACT_WEAK, ActionInterface } from "/f42/hack-man/classes/ActionBase.class";
+import ActionBase, { ActionInterface } from "/f42/hack-man/classes/ActionBase.class";
+import { ActionType, TgtSrvOpMode } from "/f42/hack-man/classes/enums";
 import TargetServer from "/f42/hack-man/classes/TargetServer.class";
 // import { timestampAsBase62Str } from "/scripts/utility/utility-functions.js";
 
 /**
  * weakenDiffMax = ((base - min) * WEAKEN_DIFF_MAX_PERCs)
  * if currentDiff (hackDifficulty - minDifficulty) > weakenDiffMax
- *    >> trigger weaken
+ *   >> trigger weaken
  * 
  * @param {number} WEAKEN_DIFF_MAX_PERC
  */
@@ -21,7 +22,7 @@ export default class WeakenAction extends ActionBase implements ActionInterface 
    * @param {TargetServer} tgtSrv
    */
   constructor(tgtSrv: TargetServer) {
-    super(tgtSrv, ACT_WEAK);
+    super(tgtSrv, ActionType.WEAK);
 
     this.allowedLogFunctions = [
       // "shouldTriggerAction",
@@ -43,6 +44,7 @@ export default class WeakenAction extends ActionBase implements ActionInterface 
   *    >> trigger weaken
   */
   shouldTriggerAction(): boolean {
+    if(this.tgtSrv.opMode === TgtSrvOpMode.FREE){
     const weakenDiffMax = (this.ns.getServerBaseSecurityLevel(this.target) - this.ns.getServerMinSecurityLevel(this.target)) * WEAKEN_DIFF_MAX_PERC;
     // this.ns.clearLog();
     // const lo = this.getLo("shouldTriggerAction", `
@@ -67,39 +69,50 @@ export default class WeakenAction extends ActionBase implements ActionInterface 
     // );
 
     return this.#hackDifficultyDiff > weakenDiffMax;
+    }
+    else{
+      return this.ns.getServerBaseSecurityLevel(this.target) > this.ns.getServerMinSecurityLevel(this.target);
+    }
   }
 
   targetAnalyse(): void {
     this.getLo("targetAnalyse");
 
     // change status and create new job
-    this.setStatusActiveJob();
+    const currJob = this.setStatusActiveJob();
 
     // analyse
-    this.currJob.estAmt = this.#hackDifficultyDiff;
+    currJob.estAmt = this.#hackDifficultyDiff;
 
     try {
-      this.currJob.estTime = this.ns.formulas.hacking.weakenTime(
+      currJob.estTime = this.ns.formulas.hacking.weakenTime(
         this.srvObj,
         this.ns.getPlayer()
       );
     }
     catch (e) {
       // dont have formulas
-      this.currJob.estTime = this.ns.getWeakenTime(this.tgtSrv.hostname);
+      currJob.estTime = this.ns.getWeakenTime(this.tgtSrv.hostname);
     }
 
-    this.currJob.threads = Math.ceil(this.#hackDifficultyDiff / WEAKEN_1T);
+    currJob.threads = Math.ceil(this.#hackDifficultyDiff / WEAKEN_1T);
 
-    if (this.currJob.threads <= 0) {
-      this.currJob.threads = 1;
+    if (currJob.threads <= 0) {
+      currJob.threads = 1;
     }
 
     // create the messages for for job's batches
-    this.currJob.batchJob();
+    currJob.batchJob();
   }
 
   get currTargetAmt(): number {
-    return this.srvObj.hackDifficulty;
+    const hackDiff = this.srvObj.hackDifficulty;
+
+    if(typeof hackDiff === "undefined"){
+      return 0;
+    }
+    else{
+      return hackDiff;
+    }
   }
 }

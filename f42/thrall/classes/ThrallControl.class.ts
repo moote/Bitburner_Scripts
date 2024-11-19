@@ -54,7 +54,7 @@ export default class ThrallControl {
       potentialJob = this.popMessage(this.newJobPort);
     }
     catch (e) {
-      potentialJob == false;
+      potentialJob = false;
     }
 
     acceptedJob = false;

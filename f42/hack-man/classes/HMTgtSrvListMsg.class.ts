@@ -2,10 +2,8 @@ import MsgBase from "/f42/classes/MsgBase.class";
 import MsgSocket from "/f42/classes/MsgSocket.class";
 import { PORT_HM_TARGETS } from "/f42/cfg/port-defs";
 import { timestampAsBase62Str } from "/f42/utility/utility-functions";
-
-interface HMTgtSrvListMsg_Interface {
-  targets: string[],
-}
+import { HMTgtSrvListMsg_Interface } from "/f42/classes/helpers/interfaces";
+import { MsgObjType } from "/f42/hack-man/classes/enums";
 
 /**
  * TargetServer list socket message for HackManager
@@ -15,7 +13,7 @@ export class HMTgtSrvListMsg extends MsgBase implements HMTgtSrvListMsg_Interfac
 
   #targets: string[];
 
-  static preHydrate(ns: NS, rawObj: HMCtrlMsg_Interface): HMTgtSrvListMsg | boolean {
+  static preHydrate(ns: NS, rawObj: HMTgtSrvListMsg_Interface): HMTgtSrvListMsg | boolean {
     if (!rawObj) {
       return false;
     }
@@ -55,7 +53,11 @@ export class HMTgtSrvListMsg extends MsgBase implements HMTgtSrvListMsg_Interfac
     return super.msgPort;
   }
 
-  get targets(): string {
+  get msgType() : MsgObjType {
+    return MsgObjType.TS_LIST;
+  }
+
+  get targets(): string[] {
     return this.#targets;
   }
 
@@ -63,11 +65,12 @@ export class HMTgtSrvListMsg extends MsgBase implements HMTgtSrvListMsg_Interfac
     // return data including any inherited
     return {
       ...super.serialize(),
+      msgType: this.msgType,
       targets: this.#targets,
     };
   }
 
-  hydrate(rawObj: HMTgtSrvListMsg_Interface): HMTgtSrvListMsg {
+  hydrate(rawObj: HMTgtSrvListMsg_Interface): void {
     if (
       typeof rawObj.targets === "undefined"
     ) {

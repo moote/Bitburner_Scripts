@@ -1,73 +1,63 @@
 import F42Base from "/f42/classes/F42Base.class";
-import ActionBase, * as hckAct from "/f42/hack-man/classes/ActionBase.class";
+import ActionBase from "/f42/hack-man/classes/ActionBase.class";
 import WeakenAction from "/f42/hack-man/classes/ActionWeaken.class";
 import GrowAction from "/f42/hack-man/classes/ActionGrow.class";
 import HackAction from "/f42/hack-man/classes/ActionHack.class";
-import { MsgErrorInvalidActionType } from "/f42/hack-man/classes/MsgException.class";
+// import { MsgErrorInvalidActionType } from "/f42/hack-man/classes/MsgException.class";
 import { Server } from "@ns";
 import F42Logger from "/f42/classes/f42-logger-class";
-import { JobStateInterface, TSrvStateInterface } from "/f42/hack-man/classes/HMStateMsg.class";
+import { ActionType, TgtSrvOpMode, TgtSrvOpModeStatus, TgtSrvStatus } from "/f42/hack-man/classes/enums";
+import { getEmpty_JobState_Interface, getEmpty_Server } from "/f42/classes/helpers/empty-object-getters";
+import { HasState_Interface, HMJobMsg_Interface, JobState_Interface, TSrvState_Interface } from "/f42/classes/helpers/interfaces";
 
-// server statuses
-export const STATUS_NEW = "new";
-export const STATUS_ACTIVE = "active";
-export const STATUS_PAUSED = "paused";
-export const STATUS_REANAL = "reananlyse";
-export const STATUS_REMOVE = "remove";
+type ActionList_Type = [
+  WeakenAction,
+  GrowAction,
+  HackAction,
+]
 
-/**
- * @param {string} testStatus
- */
-export function validateStatus(testStatus: string): boolean {
-  switch (testStatus) {
-    case STATUS_NEW:
-    case STATUS_ACTIVE:
-    case STATUS_PAUSED:
-    case STATUS_REANAL:
-    case STATUS_REMOVE:
-      return true;
-    default:
-      return false;
-  }
-}
+type ActionUnion_Type = WeakenAction | GrowAction | HackAction;
 
-export default class TargetServer extends F42Base {
+export default class TargetServer extends F42Base implements HasState_Interface {
+  #initTs: number;
   #doneInit = false;
   #metaId: string;
   #hostname: string;
   #srvObj: Server;
-  #status: string;
-  #actions: { [key: string]: ActionBase };
-  #stats: StatsTSrvInterface;
+  #status = TgtSrvStatus.NEW;
+  #actions: ActionList_Type;
+  #opMode = TgtSrvOpMode.FREE;
 
   /**
    * @param {object} ns
    * @param {F42Logger} logger
    * @param {string} hostname
    */
-  constructor(logger: F42Logger, hostname: string, metaId: string) {
+  constructor(
+    logger: F42Logger,
+    hostname: string,
+    metaId: string,
+    initialStatus: TgtSrvStatus = TgtSrvStatus.NEW,
+    initialOpMode: TgtSrvOpMode = TgtSrvOpMode.FREE
+  ) {
     super(logger);
-    this.#doInitAll(hostname, metaId);
+    this.#status = initialStatus;
+    this.#opMode = initialOpMode;
+    this.#initTs = Date.now();
+    this.#metaId = metaId;
+    this.#hostname = this.#validateHostname(hostname);
+    this.#srvObj = getEmpty_Server();
+    this.#actions = this.#initActions();
+    this.#doneInit = true;
 
     this.allowedLogFunctions = [
       // "checkReceivedMsg",
       // "checkTargetActions",
-      "statStartJob",
-      "statMsgRcvd",
+      "checkStatusActionable",
+      "changeOpMode",
+      "setStatusActive",
+      "setStatusPaused",
     ];
-  }
-
-  /**
-   * @param {string} hostname
-   */
-  #doInitAll(hostname: string, metaId: string): void {
-    this.#metaId = metaId;
-    this.#initHostname = hostname;
-    this.updateSrvObj();
-    this.#status = STATUS_NEW;
-    this.#initActions();
-    this.#initStats();
-    this.#doneInit = true;
   }
 
   // ////////////////
@@ -92,8 +82,8 @@ export default class TargetServer extends F42Base {
    * @param {string} hostname
    * @throws {Error} Throws error on invalid hostname, or no root access on server
    */
-  set #initHostname(hostname: string) {
-    // const fnN = "initHostname";
+  #validateHostname(hostname: string): string {
+    // const lo = this.getLo("initHostname");
     this.#testInit();
 
     // validate hostname
@@ -106,12 +96,10 @@ export default class TargetServer extends F42Base {
       throw new Error("TargetServer set #initHostname: No root access on target server: " + hostname);
     }
 
-    // set hostname
-    this.#hostname = hostname;
-    // this.log(fnN, "hostname: %s", hostname);
-
     // get Server object & save
     this.updateSrvObj();
+
+    return hostname;
   }
 
   /**
@@ -122,113 +110,110 @@ export default class TargetServer extends F42Base {
   }
 
   // ////////////////
-  // stats
+  // opMode
   // ////////////////
 
-  get stats(): TSrvStateInterface {
-    return this.#stats;
+  get opMode(): TgtSrvOpMode {
+    return this.#opMode;
   }
 
-  #initStats(): void {
-    this.#testInit();
-    this.#stats = {
+  get opModeStr(): string {
+    return TgtSrvOpMode[this.#opMode];
+  }
+
+  get opModeStatus(): TgtSrvOpModeStatus {
+    // make sure latest server data
+    this.updateSrvObj();
+
+    // parse status
+    if (this.#status === TgtSrvStatus.PAUSED) {
+      return TgtSrvOpModeStatus.PAUSED;
+    }
+    else if (this.#opMode === TgtSrvOpMode.FREE) {
+      return TgtSrvOpModeStatus.FREE;
+    }
+    else if (this.#opMode === TgtSrvOpMode.MONEY_MAX) {
+      if (
+        this.moneyAvailable < this.moneyMax
+        || this.hackDifficulty > this.minDifficulty
+      ) {
+        return TgtSrvOpModeStatus.IN_PROGRESS;
+      }
+      else {
+        return TgtSrvOpModeStatus.DONE;
+      }
+    }
+    else {
+      if (this.moneyAvailable > 0) {
+        return TgtSrvOpModeStatus.IN_PROGRESS;
+      }
+      else {
+        return TgtSrvOpModeStatus.DONE;
+      }
+    }
+  }
+
+  // ////////////////
+  // state
+  // ////////////////
+
+  get state(): TSrvState_Interface {
+    return {
+      hydrated: true,
       initTs: Date.now(),
-      totalHacked: 0,
-      totalGrown: 0,
-      totalWeakened: 0,
-      completedJobs: 0,
-      activeJob: this.#newStatActiveJob(),
-      jobsStoredCnt: 0,
+      opMode: this.opModeStr,
+      status: this.statusStr,
+      totalHacked: this.ns.formatNumber(this.hackAction.totalAmt),
+      totalGrown: this.ns.formatNumber(this.growAction.totalAmt),
+      totalWeakened: this.ns.formatNumber(this.weakenAction.totalAmt),
+      startedJobs: this.totalStartedJobs,
+      compJobs: this.totalCompJobs,
+      activeJob: this.activeJobState,
+      jobsStoredCnt: this.totalJobsStored,
       raw: {
-        totalHacked: 0,
-        totalGrown: 0,
-        totalWeakened: 0,
+        totalHacked: this.hackAction.totalAmt,
+        totalGrown: this.growAction.totalAmt,
+        totalWeakened: this.weakenAction.totalAmt,
       },
     };
   }
 
-  /**
-   * 
-   * @param type 
-   * @param estAmt 
-   * @param estTime 
-   * @param startTime 
-   * @returns A new JobStateInterface
-   */
-  #newStatActiveJob(type = "", estAmt = "", estTime = 0, startTime = 0): JobStateInterface {
-    return {
-      type,
-      estAmt,
-      estTime,
-      startTime,
-      msgSent: 0,
-      msgRcvd: 0,
-      amt: 0
-    };
-  }
+  get activeJobState(): JobState_Interface {
+    let jobState = getEmpty_JobState_Interface();
 
-  /**
-   * @param {string} type
-   * @param {number} estAmt
-   * @param {number} estTime
-   */
-  statStartJob(type: string, estAmt: number, estTime: number): void {
-    this.#stats.activeJob = this.#newStatActiveJob(
-      type,
-      estAmt,
-      estTime,
-      Date.now(),
-    );
-  }
+    for (const key in this.#actions) {
+      const action: ActionBase = this.#actions[key];
 
-  statMsgSent(): void {
-    this.#stats.activeJob.msgSent++;
-  }
+      // this will be an active job state, or an empty
+      // one if no active job; test with 'hydrated' property
+      jobState = action.state;
 
-  /**
-   * @param {number} jobAmt
-   */
-  statMsgRcvd(jobAmt: number): void {
-    this.getLo("statMsgRcvd", "jobAmt: %s", jobAmt);
-
-    // update job stats
-    this.#stats.activeJob.msgRcvd++;
-    this.#stats.activeJob.amt = this.ns.formatNumber(jobAmt);
-
-    // do type specific update to total
-    switch (this.#stats.activeJob.type) {
-      case hckAct.ACT_WEAK:
-        this.#stats.raw.totalWeakened += jobAmt;
-        this.#stats.totalWeakened = this.ns.formatNumber(this.#stats.raw.totalWeakened);
-        break;
-      case hckAct.ACT_GROW:
-        this.#stats.raw.totalGrown += jobAmt;
-        this.#stats.totalGrown = this.ns.formatNumber(this.#stats.raw.totalGrown);
-        break;
-      case hckAct.ACT_HACK:
-        this.#stats.raw.totalHacked += jobAmt;
-        this.#stats.totalHacked = this.ns.formatNumber(this.#stats.raw.totalHacked);
-        break;
+      if (jobState.hydrated) {
+        // found an active job state, return
+        return jobState;
+      }
     }
 
-    let jobsStoredCnt = 0;
-
-    for(const key in this.#actions){
-      jobsStoredCnt += this.#actions[key].jobListCnt;
-    }
-
-    this.#stats.jobsStoredCnt = jobsStoredCnt;
+    // no active job state found, return the last empty one
+    return jobState;
   }
 
-  /**
-   * Adds amount and clears active job stats
-   */
-  statCloseJob(): void {
-    // inc completed job count
-    this.#stats.completedJobs++;
+  get totalStartedJobs(): number {
+    return this.hackAction.jobCnt +
+      this.growAction.jobCnt +
+      this.weakenAction.jobCnt;
+  }
 
-    // clear active
-    this.#stats.activeJob = this.#newStatActiveJob();
+  get totalCompJobs(): number {
+    return this.hackAction.compJobCnt +
+      this.growAction.compJobCnt +
+      this.weakenAction.compJobCnt;
+  }
+
+  get totalJobsStored(): number {
+    return this.hackAction.jobListCnt +
+      this.growAction.jobListCnt +
+      this.weakenAction.jobListCnt;
   }
 
   // ////////////////
@@ -252,94 +237,141 @@ export default class TargetServer extends F42Base {
     }
 
     this.#srvObj = this.ns.getServer(this.#hostname);
+
+    if (!this.#srvObj || typeof this.#srvObj === "undefined") {
+      throw new Error("HackManager.updateSrvObj(): Failed to get Server object");
+    }
   }
 
   /**
    * @returns { Server }
    */
   get srvObj(): Server {
+    if (!this.#srvObj) {
+      this.updateSrvObj();
+    }
+
     return this.#srvObj;
+  }
+
+  get moneyMax(): number {
+    if (typeof this.srvObj.moneyMax !== "undefined") {
+      return this.srvObj.moneyMax;
+    }
+    else {
+      return 0;
+    }
+  }
+
+  get moneyAvailable(): number {
+    if (typeof this.srvObj.moneyAvailable !== "undefined") {
+      return this.srvObj.moneyAvailable;
+    }
+    else {
+      return 0;
+    }
+  }
+
+  get hackDifficulty(): number {
+    if (typeof this.srvObj.hackDifficulty !== "undefined") {
+      return this.srvObj.hackDifficulty;
+    }
+    else {
+      return 0;
+    }
+  }
+
+  get minDifficulty(): number {
+    if (typeof this.srvObj.minDifficulty !== "undefined") {
+      return this.srvObj.minDifficulty;
+    }
+    else {
+      return 0;
+    }
   }
 
   // ////////////////
   // status
   // ////////////////
 
-  /**
-   * @param { string } newStatus
-   * @throws { Error } Throws error if status invalid
-   */
-  set status(newStatus: string) {
-    if (!validateStatus(newStatus)) {
-      throw new Error("TargetServer set status: Invalid status: " + newStatus);
+  setStatusActive(): boolean {
+    const lo = this.getLo("setStatusActive");
+
+    if (TgtSrvStatus.ACTIVE === this.#status) {
+      return false;
     }
     else {
-      this.#status = newStatus;
-
-      // TODO: trigger additional status change logic
+      this.#status = TgtSrvStatus.ACTIVE;
+      lo.g("status >> ACTIVE ▶️");
+      return true;
     }
+  }
+
+  setStatusPaused(): boolean {
+    const lo = this.getLo("setStatusPaused");
+
+    if (TgtSrvStatus.PAUSED === this.#status) {
+      return false;
+    }
+    else {
+      this.#status = TgtSrvStatus.PAUSED;
+      lo.g("status >> PAUSED ⏸");
+      return true;
+    }
+  }
+
+  /**
+   * @returns {TgtSrvStatus}
+   */
+  get status(): TgtSrvStatus {
+    return this.#status;
   }
 
   /**
    * @returns {string}
    */
-  get status(): string {
-    return this.#status;
+  get statusStr(): string {
+    return TgtSrvStatus[this.#status];
   }
 
   // ////////////////
   // actions
   // ////////////////
 
-  #initActions(): void {
+  #initActions(): ActionList_Type {
     this.#testInit();
-    this.#actions = {};
-    this.#actions[hckAct.ACT_WEAK] = new WeakenAction(this);
-    this.#actions[hckAct.ACT_GROW] = new GrowAction(this);
-    this.#actions[hckAct.ACT_HACK] = new HackAction(this);
+    return [
+      new WeakenAction(this),
+      new GrowAction(this),
+      new HackAction(this),
+    ];
   }
 
   /**
-   * Returns ActionBase for requested type
-   * 
-   * @param {string} type The action type required
-   * @returns {ActionBase}
-   * @throws {Error} Throws error if type invalid
-   */
-  getAction(type: string): ActionBase {
-    if (!hckAct.validateType(type)) {
-      throw new Error("TargetServer.getAction(): Invalid action type: " + type);
-    }
-    else {
-      return this.#actions[type];
-    }
-  }
-
-  /**
-   * Returns WeakenAction for requested type
+   * Returns WeakenAction
    * 
    * @returns {WeakenAction}
    */
   get weakenAction(): WeakenAction {
-    return this.#actions[hckAct.ACT_WEAK];
+    return this.#actions[ActionType.WEAK];
   }
 
   /**
-   * Returns GrowAction for requested type
+   * Returns GrowAction
    * 
    * @returns {GrowAction}
    */
   get growAction(): GrowAction {
-    return this.#actions[hckAct.ACT_GROW];
+    return this.#actions[ActionType.GROW];
   }
 
   /**
-   * Returns HackAction for requested type
+   * Returns HackAction
    * 
    * @returns {HackAction}
    */
   get hackAction(): HackAction {
-    return this.#actions[hckAct.ACT_HACK];
+    return this.#actions[ActionType.HACK];
   }
 
   get hasActiveAction(): boolean {
@@ -350,8 +382,48 @@ export default class TargetServer extends F42Base {
     ) {
       return true;
     }
-    else{
+    else {
       return false;
+    }
+  }
+
+  /**
+   * Gets the active action if one exists
+   * 
+   * @returns The active action if found, else false
+   */
+  get activeAction(): ActionUnion_Type | false {
+    for (const action of this.#actions) {
+      if (action.hasActiveJob) {
+        return action;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Cancels any active job
+   * 
+   * @returns True if active job found and canceled, false if no active jobs
+   */
+  cancelActiveJob(): boolean {
+    for (const action of this.#actions) {
+      if (action.tryCancel()) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  get allowedActionsForOpMode(): ActionType[] {
+    if (TgtSrvOpMode.MONEY_MAX === this.#opMode) {
+      return [ActionType.WEAK, ActionType.GROW];
+    }
+    else if (TgtSrvOpMode.MONEY_MIN === this.#opMode) {
+      return [ActionType.HACK];
+    }
+    else {
+      return [ActionType.WEAK, ActionType.GROW, ActionType.HACK];
     }
   }
 
@@ -359,87 +431,126 @@ export default class TargetServer extends F42Base {
   // main loop functions
   // ////////////////
 
-  checkStatusActionable():void {
+  /**
+   * Changes op mode to requested one, if change needed.
+   * If change needed, any active action/job is cancelled.
+   * 
+   * @param newOpMode The TgtSrvOpMode to change to
+   * @returns True if mode changed, false if no change needed
+   */
+  changeOpMode(newOpMode: TgtSrvOpMode): boolean {
+    const lo = this.getLo("changeOpMode");
+
+    if (newOpMode === this.#opMode) {
+      if (this.status === TgtSrvStatus.PAUSED) {
+        lo.g("opMode %s activate >>", this.opModeStr);
+        this.setStatusActive();
+        return true;
+      }
+      else {
+        // do nothing
+        lo.g("Already running req mode: newOpMode === this.#opMode; no action needed 👋");
+        return false;
+      }
+    }
+    else {
+      // cancel active action/job
+      this.cancelActiveJob();
+
+      // change mode
+      lo.g("Op mode changed from %s to %s 🎉", this.opModeStr, TgtSrvOpMode[newOpMode]);
+      this.#opMode = newOpMode;
+
+      // // unpause if paused
+      // if(this.status === TgtSrvStatus.PAUSED){
+      //   this.setStatusActive();
+      // }
+
+      // pause new mode by default
+      this.setStatusPaused();
+
+      return true;
+    }
+  }
+
+  checkStatusActionable(): void {
+    const lo = this.getLo("checkStatusActionable");
     switch (this.status) {
-      case STATUS_NEW:
-        // this.log(fnN, "tgtSrv: %s > STATUS_NEW", tgtSrvHostname);
+      case TgtSrvStatus.NEW:
+        lo.g("tgtSrv: %s > STATUS_NEW", this.hostname);
         // set active
-        this.status = STATUS_ACTIVE;
+        this.setStatusActive();
 
         // check actions
         this.#checkTargetActions();
         break;
-      case STATUS_ACTIVE:
-        // this.log(fnN, "tgtSrv: %s > STATUS_ACTIVE", tgtSrvHostname);
+      case TgtSrvStatus.ACTIVE:
+        lo.g("tgtSrv: %s > STATUS_ACTIVE", this.hostname);
         // check actions
         this.#checkTargetActions();
         break;
-      case STATUS_PAUSED:
-        // this.log(fnN, "tgtSrv: %s > STATUS_PAUSED", tgtSrvHostname);
+      case TgtSrvStatus.PAUSED:
+        lo.g("tgtSrv: %s > STATUS_PAUSED", this.hostname);
         // do nothing
         break;
-      case STATUS_REANAL:
-        // this.log(fnN, "tgtSrv: %s > STATUS_REANAL", tgtSrvHostname);
-        // TODO
-        break;
-      case STATUS_REMOVE:
-        // this.log(fnN, "tgtSrv: %s > STATUS_REMOVE", tgtSrvHostname);
-        // TODO
-        break;
       default:
-        throw new Error(
-          super.ns.sprintf(
-            "!! TargetServer.checkStatusActionable: Unknown target server status: %s",
-            this.status
-          )
-        );
+        throw lo.gThrowErr("!! TargetServer.checkStatusActionable: Unknown target server status: %s 😱", this.status);
         break;
     }
   }
 
-  #checkTargetActions(): boolean {
+  /**
+   * Actions MUST be run/tested in looping order: Weaken > Grow > Weaken > Hack
+   * A test is done first to see if any action is running, if it is, 
+   * it should be allowed to continue. If none are running, then check in
+   * the above order of precedence.
+   */
+  #checkTargetActions(): void {
     const lo = this.getLo("checkTargetActions");
-    if (this.hasActiveAction) {
-      // do nothing as one of the actions has an active job
-      if (this.weakenAction.hasActiveJob) {
-        lo.g("Weaken active");
-        this.weakenAction.checkTargetNeedsAction();
-      }
-      else if (this.growAction.hasActiveJob) {
-        lo.g("Grow active");
-        this.growAction.checkTargetNeedsAction();
-      }
-      else if (this.hackAction.hasActiveJob) {
-        lo.g("Hack active");
-        this.hackAction.checkTargetNeedsAction();
+    const activeAct = this.activeAction;
+
+    // get a list of allowed action types based on op mode
+    const allowedActions = this.allowedActionsForOpMode;
+
+    if (activeAct !== false) {
+      if ((activeAct.type in allowedActions)) {
+        // keep running allowed action
+        lo.g("Continuing %s",);
+        activeAct.checkTargetNeedsAction();
       }
       else {
-        lo.g("!!!! hasActive action, but no active action found !!!!");
+        // cancel action that's not allowed in this mode
+        lo.g("Cancelling %s, not allowed in this mode (%s)", activeAct.type, this.#opMode);
+        activeAct.tryCancel();
       }
     }
-    else { // test each action to see if needed
-      if (!this.weakenAction.checkTargetNeedsAction()) {
-        lo.g("Weaken not needed");
-        if (!this.growAction.checkTargetNeedsAction()) {
-          lo.g("Grow not needed");
-          lo.g("Hack needed");
-          this.hackAction.checkTargetNeedsAction();
+    else {
+      // iterate allowed actions in order
+      for (const allowedActType of allowedActions) {
+        lo.g("testing: %s", allowedActType);
+        if (this.#actions[allowedActType].checkTargetNeedsAction()) {
+          lo.g("%s actioned 🎉", allowedActType);
+          break;
         }
       }
     }
   }
 
-  checkReceivedMsg(rcvdMsg: MsgSendInterface): boolean {
-    const lo = this.getLo("checkReceivedMsg", " CHK_ACTION: %s -> %s %s", this.hostname, rcvdMsg.msgId, rcvdMsg.actionType);
+  checkReceivedMsg(rcvdMsg: HMJobMsg_Interface): boolean {
+    const lo = this.getLo(
+      "checkReceivedMsg",
+      " CHK_ACTION: %s -> %s %d",
+      this.hostname,
+      rcvdMsg.msgId,
+      rcvdMsg.actionType
+    );
 
     if (rcvdMsg.actionType in this.#actions) {
       lo.g("MATCH_ACTION: %s", rcvdMsg.target);
       return this.#actions[rcvdMsg.actionType].checkReceivedMsg(rcvdMsg);
     }
     else {
-      throw new MsgErrorInvalidActionType(
-        this.ns.sprintf("Invalid action type: %s", this.stringify(rcvdMsg))
-      );
+      throw lo.gThrowErr("Invalid action type: %s", JSON.stringify(rcvdMsg, null, 2));
     }
   }
 }
