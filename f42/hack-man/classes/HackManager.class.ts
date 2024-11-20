@@ -2,8 +2,8 @@ import F42Base from '/f42/classes/F42Base.class';
 import TargetServer from '/f42/hack-man/classes/TargetServer.class';
 import Logger from '/f42/classes/Logger.class';
 import { HMCtrlMsg, HMCtrlMsg_ADD_TS, HMCtrlMsg_RM_TS, HMCtrlMsg_CLEAR_ACTIONS, HMCtrlMsg_CHANGE_OP_MODE, HMCtrlMsg_CHANGE_TT_MODE, HMCtrlMsg_TT_PAUSE } from './HMCtrlMsg.class';
-import { HMTgtSrvListMsg } from '/f42/hack-man/classes/HMTgtSrvListMsg.class';
-import { HMStateMsg } from '/f42/hack-man/classes/HMStateMsg.class';
+import HMTgtSrvListMsg from '/f42/hack-man/classes/HMTgtSrvListMsg.class';
+import HMStateMsg from '/f42/hack-man/classes/HMStateMsg.class';
 import { HMCtrlMsgQReader } from '/f42/hack-man/classes/HMCtrlMsgQReader.class';
 import { HMCompJobQReader } from '/f42/hack-man/classes/HMCompJobQReader.class';
 import { ReceivedMessageException } from '/f42/hack-man/classes/MsgException.class';
@@ -20,7 +20,6 @@ const HMO_SRV_V = 4;
 export default class HackManager extends F42Base {
   #meta!: HMMeta_Interface;
   #tgtList!: {[key: string]: TargetServer};
-  #shouldKill = false; // used for dev/testing/debug
   #mqrCtrlMsgs!: HMCtrlMsgQReader;
   #mqrCompJobMsgs!: HMCompJobQReader;
 
@@ -116,14 +115,6 @@ export default class HackManager extends F42Base {
         throw new Error("Not started, already running; only one instance of HackManager can run at a time.\n* Running instance not affected.");
       }
     }
-  }
-
-  ////////////////////////
-  // debug functions
-  ///////////////////////
-
-  get shouldKill(): boolean {
-    return this.#shouldKill;
   }
 
   ////////////////////////

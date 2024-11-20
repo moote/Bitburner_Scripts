@@ -1,5 +1,6 @@
-import { StrClFlag, IntClFlag, FloatClFlag, BoolClFlag, StrArrClFlag } from "f42/classes/CmdLineFlags/CLFlag.class";
-import { AllowedFlagValue_Type } from "f42/classes/CmdLineFlags/CLFlagUtilities";
+import { StrClFlag, IntClFlag, FloatClFlag, BoolClFlag, StrArrClFlag, CLFlag } from "f42/classes/CmdLineFlags/CLFlag.class";
+import { AllowedFlagValue_Type, NSFlag_Type } from "f42/classes/CmdLineFlags/CLFlagUtilities";
+import FeedbackRenderer from "/f42/classes/FeedbackRenderer";
 
 type FlagObject_Type = StrClFlag | IntClFlag | FloatClFlag | BoolClFlag | StrArrClFlag;
 type ErrorList_Type = { [key: string]: string[] };
@@ -54,7 +55,7 @@ export default class CmdLineFlagValidator {
     flag: string,
     description: string,
     isRequired = false,
-    defaultVal: ""
+    defaultVal = ""
   ): void {
     this.#addFlag(new StrClFlag(flag, description, isRequired, defaultVal));
   }
@@ -97,7 +98,21 @@ export default class CmdLineFlagValidator {
    * @returns True if all flags valid, false if errors OR help request found
    */
   validateFlags(): boolean {
+    // this.#ns.printf(">> validateFlags: ");
     return this.#loadNsFlags();
+  }
+
+  isflagSet(flag: string): boolean {
+    let flagObj: FlagObject_Type;
+
+    try{
+      flagObj = this.#getFlagObject(flag);
+    }
+    catch(e){
+      return false;
+    }
+
+    return flagObj.isSet;
   }
 
   getFlagString(flag: string): string {
@@ -108,8 +123,8 @@ export default class CmdLineFlagValidator {
     return <number>this.#getFlagValue(flag);
   }
 
-  getFlagBoolean(flag: string): number {
-    return <number>this.#getFlagValue(flag);
+  getFlagBoolean(flag: string): boolean {
+    return <boolean>this.#getFlagValue(flag);
   }
 
   getFlagStringArr(flag: string): string[] {
@@ -125,29 +140,47 @@ export default class CmdLineFlagValidator {
     this.#hasError = true;
   }
 
-  renderHelpAndErrors(): string {
-    let output = "";
+  renderHelpAndErrors(feedback: FeedbackRenderer): void {
+    feedback.printSubTitle("Command Line Flags:");
 
     // help
     for (const flagObj of this.#flags) {
-      output += `${flagObj.flagFull} ${flagObj.description}\n`;
+      feedback.printf("%s %s", flagObj.flagWithDashes, flagObj.description);
     }
 
     if (this.#hasError) {
-      output += "\n";
+      feedback.printSubTitle("Errors");
 
       // errors
       for (const flag in this.#errorList) {
         for (const errMsg of this.#errorList[flag]) {
-          output += `ERROR: ${this.#getFlagObject(flag).flagFull} ${errMsg}\n`;
+          try{
+            const flagObj = this.#getFlagObject(flag);
+            feedback.printErr("%s >> %s", flagObj.flagWithDashes, errMsg);
+          }
+          catch(e){
+            feedback.printErr("%s >> %s", flag, errMsg);
+          }
         }
       }
     }
-
-    return output;
   }
 
-  #addFlag(flagObj: FlagObject_Type) {
+  debug(): string {
+    let debug = "";
+
+    for(const flagObj of this.#flags){
+      debug += `${flagObj.flag} >> cleanValue: ${flagObj.cleanValue}\n`;
+    }
+
+    debug += `\n\nformatFlagsForNS(): ${JSON.stringify(this.#formatFlagsForNS(), null, 2)}`;
+
+    debug += `\n\nns.flags(): ${JSON.stringify(this.#nsFlags, null, 2)}`;
+
+    return debug;
+  }
+
+  #addFlag(flagObj: FlagObject_Type): void {
     // add flag object to list and record index
     this.#flagIndexes[flagObj.flag] = this.#flags.push(flagObj) - 1;
   }
@@ -157,7 +190,7 @@ export default class CmdLineFlagValidator {
       return this.#flags[this.#flagIndexes[flag]];
     }
     else {
-      throw new Error("Not a valid flag! missing: " + flag);
+      throw new Error(`Not a valid flag! missing: ${flag} >> flags:\n\n${JSON.stringify(this.#flagIndexes, null, 2)}`);
     }
   }
 
@@ -179,10 +212,14 @@ export default class CmdLineFlagValidator {
    *          request flag found
    */
   #loadNsFlags(): boolean {
-    if (typeof this.#nsFlags === undefined) {
+    // this.#ns.printf(">> loadNsFlags: %s", (typeof this.#nsFlags));
+
+    if (typeof this.#nsFlags === "undefined") {
       // add help flags
       this.addBooleanFlag("help", "Show help text");
       this.addBooleanFlag("h", "Show help text");
+
+      // this.#ns.printf(">> loadNsFlags: ");
 
       // load and validate
       this.#nsFlags = this.#ns.flags(this.#formatFlagsForNS());
@@ -190,15 +227,19 @@ export default class CmdLineFlagValidator {
       // copy #nsFlags
       for (const flagObj of this.#flags) {
         if (flagObj.flag in this.#nsFlags) {
-          // only validate if not a standard help request
-          if (flagObj.isHelpRequest) {
+
+          // this.#ns.printf(">> loadNsFlags: flagObj.flag: %s | this.#nsFlags[flag]: %s ", flagObj.flag, JSON.stringify(this.#nsFlags[flagObj.flag]));
+
+          if (!flagObj.validate(this.#nsFlags[flagObj.flag])) {
+            this.addError(flagObj.flag, flagObj.errorMsg);
+          }
+
+          // test if help request
+          if (flagObj.isHelpRequest && flagObj.cleanValue === true) {
             // set flag and stop loading
             this.#helpRequested = true;
             this.#hasError = false;
             return false;
-          }
-          if (!flagObj.validate(this.#nsFlags[flagObj.flag])) {
-            this.addError(flagObj.flag, flagObj.errorMsg);
           }
         }
         else if (flagObj.validateMissing()) {

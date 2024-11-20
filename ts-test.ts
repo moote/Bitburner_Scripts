@@ -1,14 +1,14 @@
-import F42Logger from "f42/classes/f42-logger-class";
+import Logger from "f42/classes/Logger.class";
 import { randomBase62Str } from "f42/utility/utility-functions";
-import F42Feedback from "/f42/classes/f42-feedback-class";
-import { HMJobMsg_Interface } from "/f42/classes/helpers/interfaces";
+import { HMJobMsg_Interface } from "f42/classes/helpers/interfaces";
+import FeedbackRenderer from "/f42/classes/FeedbackRenderer";
 // import F42ClFlagDef from "f42/classes/f42-cl-flag-def-class";
 
 const DUMMY_MSG_FILE = "/f42/dummy-msg.js";
 const PORT_ID = 10;
 
 /** @param {NS} ns */
-export async function main(ns: NS) {
+export async function main(ns: NS): Promise<void> {
   // const foo = {msgId: "msgId_AcPWMi"};
   // ns.write(DUMMY_MSG_FILE, JSON.stringify(foo), "w");
   // return;
@@ -25,10 +25,11 @@ export async function main(ns: NS) {
 
 function classTest(ns: NS) {
   const scriptTitle = "TS Test";
-  const logger = new F42Logger(ns, true, true, false, scriptTitle, false);
+  const logger = new Logger(ns, true, true, false, scriptTitle, false);
   const scriptDescription = "";
   const feedback = logger.initFeedback(scriptTitle, scriptDescription);
-  if (!feedback) {
+
+  if (feedback.printHelpAndEnd()) {
     return;
   }
 
@@ -84,13 +85,13 @@ class Child {
 
 class Playroom {
   #ns: NS;
-  #feedback: F42Feedback;
+  #feedback: FeedbackRenderer;
   #name: string;
   #maxCapacity: number;
   #currCapacity: number;
   #children: { [key: string]: Child };
 
-  constructor(feedback: F42Feedback, name: string, maxCapacity: number) {
+  constructor(feedback: FeedbackRenderer, name: string, maxCapacity: number) {
     this.#ns = feedback.ns;
     this.#feedback = feedback;
     this.#name = name;

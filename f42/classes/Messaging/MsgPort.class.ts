@@ -1,4 +1,4 @@
-import { MsgObjData_Interface } from "/f42/cfg/port-defs";
+import { MsgObjData_Interface } from "/f42/classes/helpers/interfaces";
 
 /**
  * The base message port class; separate queue/socket classes
@@ -47,7 +47,7 @@ export default class MsgPort {
    * 
    * Throws exceptions on other errors.
    */
-  popMessage(portId: number): MsgObjData_Interface | boolean {
+  popMessage(portId: number): MsgObjData_Interface | false {
     if (!this.validatePortType(portId)) {
       throw new Error(this.ns.sprintf("!! Not a valid message stack port: %d", portId));
     }
@@ -72,7 +72,7 @@ export default class MsgPort {
   /**
    * Return peek from requested mesage stack port id
    */
-  peekMessage(portId: number): MsgObjData_Interface | boolean {
+  peekMessage(portId: number): MsgObjData_Interface | false {
     if (!this.validatePortType(portId)) {
       throw new Error(this.ns.sprintf("!! Not a valid message stack port: %d", portId));
     }

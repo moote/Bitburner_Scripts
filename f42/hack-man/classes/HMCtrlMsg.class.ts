@@ -1,11 +1,11 @@
-import MsgBase from "/f42/classes/MsgBase.class";
-import MsgQueue from "/f42/classes/MsgQueue.class";
+import MsgBase from "/f42/classes/Messaging/MsgBase.class";
+import MsgQueue from "/f42/classes/Messaging/MsgQueue.class";
 import { Server } from "@ns";
 import { timestampAsBase62Str } from "/f42/utility/utility-functions";
 import { CtrlMsgAct, HMOpMode, MsgObjType, TgtSrvOpMode } from "/f42/hack-man/classes/enums";
 import { HMCtrlMsg_Interface, HMCtrlMsgPayload_Interface } from "/f42/classes/helpers/interfaces";
 import { PORT_HM_CTRL } from "/f42/cfg/port-defs";
-import { getEmpty_HMCtrlMsg } from "/f42/classes/helpers/empty-object-getters";
+import { getEmpty_HMCtrlMsg, getEmpty_Server } from "/f42/classes/helpers/empty-object-getters";
 
 const SRV_COMP_FILE_PATH = "/f42/utility/compromise-server.js";
 
@@ -23,7 +23,7 @@ export class HMCtrlMsg extends MsgBase implements HMCtrlMsg_Interface {
 
     switch (rawObj.action) {
       case CtrlMsgAct.ADD_TS:
-        newMsg = new HMCtrlMsg_ADD_TS(ns, getEmpty_HMCtrlMsg());
+        newMsg = new HMCtrlMsg_ADD_TS(ns, getEmpty_Server());
         break;
       case CtrlMsgAct.RM_TS:
         newMsg = new HMCtrlMsg_RM_TS(ns, "");
@@ -63,7 +63,7 @@ export class HMCtrlMsg extends MsgBase implements HMCtrlMsg_Interface {
    * Override MsgBase so exact type can be declared
    */
   get msgPort(): MsgQueue {
-    return super.msgPort;
+    return <MsgQueue>super.msgPort;
   }
 
   get msgType(): MsgObjType {
@@ -117,7 +117,7 @@ export class HMCtrlMsg_ADD_TS extends HMCtrlMsg implements HMCtrlMsgPayload_Inte
 
     if (!ns.hasRootAccess(target)) {
       // no root access, send to compromiser script, which will post back if it is successful
-      ns.run(SRV_COMP_FILE_PATH, 1, target, true);
+      ns.run(SRV_COMP_FILE_PATH, 1, "--target", target, "--add-tgt-list", true);
       return false;
     }
 

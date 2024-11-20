@@ -15,7 +15,7 @@ const RUN_AS_SEN = "s";
 // };
 
 /** @param {NS} ns */
-export async function main(ns: NS): void {
+export async function main(ns: NS): Promise<void> {
   const flagData = ns.flags([
     [RUN_AS_ALL, false], // isAll
     [RUN_AS_REC, false], // isReceiver
@@ -45,6 +45,8 @@ export async function main(ns: NS): void {
     runAs = RUN_AS_SEN;
   }
 
+  const version = JSON.stringify(flagData["v"]);
+
   // ns.tprintf(">>>>>>>>>> Thrall controller launched as: %s", RUN_AS_DESC[runAs]);
 
   if (runAs === RUN_AS_LAUNCHER) {
@@ -55,11 +57,11 @@ export async function main(ns: NS): void {
     ns.kill(ns.getScriptName(), ns.getHostname(), "-s");
 
     // launch new
-    ns.run(ns.getScriptName(), 1, "-r", "-v", flagData["v"]);
-    ns.run(ns.getScriptName(), 1, "-p", "-v", flagData["v"]);
-    ns.run(ns.getScriptName(), 1, "-s", "-v", flagData["v"]);
+    ns.run(ns.getScriptName(), 1, "-r", "-v", version);
+    ns.run(ns.getScriptName(), 1, "-p", "-v", version);
+    ns.run(ns.getScriptName(), 1, "-s", "-v", version);
   }
-  else {
+  else if (typeof tc !== "undefined") {
     while (true) {
       switch (runAs) {
         case RUN_AS_ALL:
@@ -81,6 +83,8 @@ export async function main(ns: NS): void {
       await ns.sleep(ThrallControl.getRandomNumberInRange(100, 250));
     }
   }
+
+  // should never get here...
 }
 
 function runAll(tc: ThrallControl) {

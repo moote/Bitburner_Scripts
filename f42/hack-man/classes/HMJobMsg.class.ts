@@ -1,10 +1,10 @@
-import MsgBase from "/f42/classes/MsgBase.class";
-import MsgQueue from "/f42/classes/MsgQueue.class";
+import MsgBase from "/f42/classes/Messaging/MsgBase.class";
+import MsgQueue from "/f42/classes/Messaging/MsgQueue.class";
 import { PORT_POSTED_JOBS } from "/f42/cfg/port-defs";
 import { ActionType, JobMsgStatus, MsgObjType } from "/f42/hack-man/classes/enums";
 import { HMJobMsg_Interface, HMJobMsgResult_Interface } from "/f42/classes/helpers/interfaces";
 import { getEmpty_HMJobMsgResult } from "/f42/classes/helpers/empty-object-getters";
-import { MsgQAcceptedMsg_Type } from "/f42/classes/MsgQueueReader.class";
+import { MsgQAcceptedMsg_Type } from "/f42/classes/Messaging/MsgQueueReader.class";
 
 /**
  * Job message for HackManager
@@ -64,7 +64,7 @@ export default class HMJobMsg extends MsgBase implements HMJobMsg_Interface {
    * Override MsgBase so exact type can be declared
    */
   get msgPort(): MsgQueue {
-    return super.msgPort;
+    return <MsgQueue>super.msgPort;
   }
 
   get msgType(): MsgObjType {

@@ -24,12 +24,12 @@ const F42_HM_DEBUG_TARGET: string[] = [
 /** @param {NS} ns */
 export async function main(ns: NS): Promise<void> {
   const scriptTitle = "HackManager:V6";
-  const logger = new Logger(ns, true, true, false, scriptTitle, false);
   const scriptDescription = "Manages automated hacking";
+  const logger = new Logger(ns, false, false, true, scriptTitle, true);
   const feedback = logger.initFeedback(scriptTitle, scriptDescription);
 
   // help requested / flag errors
-  if (!feedback) {
+  if (feedback.printHelpAndEnd()) {
     return;
   }
 
@@ -61,20 +61,6 @@ export async function main(ns: NS): Promise<void> {
   }
 
   while (true) {
-    if (F42_HM_DEBUG && hackMan.shouldKill) {
-      // reset
-      hackMan.debugReset();
-
-      // pause to allow reset
-      await ns.sleep(1000);
-
-      // dequeue
-      // ns.run("scripts/dynamic/v2/peek-msg-stack.js", 1, "-d", "-p", "10");
-
-      // kill
-      return;
-    }
-
     hackMan.mainLoop();
     await ns.sleep(1500);
   }

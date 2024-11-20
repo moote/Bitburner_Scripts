@@ -101,16 +101,14 @@ export default class FeedbackRenderer {
    * Helper function to render comandline flags and associated help text
    */
   printUsageInfo(): void {
-    this.printLineSeparator();
-    this.#doFeedback(F42_ANSI_COL_HILI + "Command line flags:");
-    this.#doFeedback(this.#flagValidator.renderHelpAndErrors());
+    this.#flagValidator.renderHelpAndErrors(this);
   }
 
   /**
    * Helper function to separate lines (default green)
    */
   printLineSeparator(colour = F42_ANSI_COL_TXT): void {
-    this.#doFeedback(colour + "----------------");
+    this.#doFeedback(colour + "-------------------------");
   }
 
   /**

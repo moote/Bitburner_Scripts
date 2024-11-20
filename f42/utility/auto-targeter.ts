@@ -1,44 +1,49 @@
-import F42Logger from "/f42/classes/f42-logger-class";
-// import F42ClFlagDef from "/scripts/classes/f42-cl-flag-def-class.js";
-import { MsgSocketReader } from "/f42/classes/MsgSocketReader.class";
-import F42Feedback from "/f42/classes/f42-feedback-class";
+import Logger from "/f42/classes/Logger.class";
+import FeedbackRenderer from "/f42/classes/FeedbackRenderer";
 import HackManager from "/f42/hack-man/classes/HackManager.class";
-import { PORT_HM_TARGETS } from "/f42/cfg/port-defs";
 import { timestampAsBase62Str, getActivityVisStr } from "/f42/utility/utility-functions";
+import HMTgtSrvListMsgReader from "/f42/hack-man/classes/HMTgtSrvListMsgReader.class";
 
 const AT_IS_DEBUG = false;
 const AT_LEV_MULTI = 0.75;
 
 interface AT_OpVarsInterface {
-  msgScktReader: MsgSocketReader
+  tgtSrvListMsgReader: HMTgtSrvListMsgReader,
+  userHackLev: number,
+  userMaxHackPorts: number,
+  reqHackLevel: number,
+  reqHackPorts: number,
   minSrvMoney: number;
-  targetList: string[] | false;
+  targetList: string[];
   dBugStr: string[];
 }
 
 /**
  * @param {NS} ns
- * @version 4
+ * @version 5
  */
-export async function main(ns: NS): void {
+export async function main(ns: NS): Promise<void>{
   // make sure not already running
   vaildateSingleton(ns);
 
-  const scriptTitle = "AutoTargeter:v4";
-  const logger = new F42Logger(ns, false, false, true, scriptTitle, true);
+  const scriptTitle = "AutoTargeter:v5";
   const scriptDescription = "Finds valid targets and posts them to HackManager";
-  const scriptFlags = [];
-  const feedback = logger.initFeedback(scriptTitle, scriptDescription, scriptFlags);
+  const logger = new Logger(ns, false, false, true, scriptTitle, true);
+  const feedback = logger.initFeedback(scriptTitle, scriptDescription);
 
-  if (!feedback) {
+  if (feedback.printHelpAndEnd()) {
     return;
   }
 
   // init
   const opVars: AT_OpVarsInterface = {
-    msgScktReader: new MsgSocketReader(ns, PORT_HM_TARGETS),
+    tgtSrvListMsgReader: new HMTgtSrvListMsgReader(ns),
+    userHackLev: 0,
+    userMaxHackPorts: 0,
+    reqHackLevel: 0,
+    reqHackPorts: 0,
     minSrvMoney: 1e6,
-    targetList: false,
+    targetList: [],
     dBugStr: [],
   };
 
@@ -78,7 +83,7 @@ export async function main(ns: NS): void {
           feedback.ns.tprintf(dbug);
         }
 
-        feedback.ns.tprintf("--------------------------");
+        feedback.printLineSeparator();
       }
     }
 
@@ -87,7 +92,7 @@ export async function main(ns: NS): void {
   }
 }
 
-function vaildateSingleton(ns) {
+function vaildateSingleton(ns: NS) {
   for (const psInfo of ns.ps()) {
     if (psInfo.filename == ns.getScriptName() && ns.pid != psInfo.pid) {
       throw new Error("Auto targeter not started, already running; only process can run at a time.\n* Running process not affected.");
@@ -95,13 +100,13 @@ function vaildateSingleton(ns) {
   }
 }
 
-function isHackManRunning(feedback: F42Feedback, opVars: AT_OpVarsInterface) {
+function isHackManRunning(feedback: FeedbackRenderer, opVars: AT_OpVarsInterface) {
   // peek target list
-  const portList = opVars.msgScktReader.peekMessage();
+  const portList = opVars.tgtSrvListMsgReader.peekMessage();
 
   if (feedback.ns.isRunning("f42/hack-man/hack-manager.js")) {
     feedback.printHiLi("- HackManager running");
-    if (!portList) {
+    if (portList === false) {
       // port list not loaded yet, wait
       return false;
     }
@@ -113,10 +118,10 @@ function isHackManRunning(feedback: F42Feedback, opVars: AT_OpVarsInterface) {
   }
   else {
     // not running, clear target list & port
-    opVars.targetList = false;
+    opVars.targetList = [];
 
     if (portList !== false) {
-      opVars.msgScktReader.popMessage();
+      opVars.tgtSrvListMsgReader.popMessage();
       feedback.printErr("- HackManager not started: Clearing port");
     }
     else {
@@ -127,7 +132,7 @@ function isHackManRunning(feedback: F42Feedback, opVars: AT_OpVarsInterface) {
   }
 }
 
-function getUserLevels(feedback:F42Feedback, opVars: AT_OpVarsInterface) {
+function getUserLevels(feedback:FeedbackRenderer, opVars: AT_OpVarsInterface) {
   opVars.userHackLev = feedback.ns.getHackingLevel();
   opVars.userMaxHackPorts = 0;
 
@@ -151,7 +156,7 @@ function getUserLevels(feedback:F42Feedback, opVars: AT_OpVarsInterface) {
   opVars.reqHackPorts = opVars.userMaxHackPorts;
 }
 
-function scanAdjServers(feedback: F42Feedback, baseServer: string, depthCnt: number, opVars: AT_OpVarsInterface) {
+function scanAdjServers(feedback: FeedbackRenderer, baseServer: string, depthCnt: number, opVars: AT_OpVarsInterface) {
   let i = 1;
 
   if (baseServer == "home") {
@@ -265,11 +270,10 @@ function scanAdjServers(feedback: F42Feedback, baseServer: string, depthCnt: num
   }
 }
 
-function addTarget(feedback: F42Feedback, target: string): void {
+function addTarget(feedback: FeedbackRenderer, target: string): void {
   if (AT_IS_DEBUG) {
     feedback.printf("DEBUG_MODE: Target found, not added: %s", target);
     feedback.ns.tprintf(">>>>>> DEBUG_MODE: Target found, not added: %s", target);
-    return true;
   }
   else {
     feedback.printf("Target found and added: %s", target);

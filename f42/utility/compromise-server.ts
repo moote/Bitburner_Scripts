@@ -1,3 +1,4 @@
+import Logger from "/f42/classes/Logger.class";
 import { HMCtrlMsg_ADD_TS } from "/f42/hack-man/classes/HMCtrlMsg.class";
 
 /**
@@ -7,27 +8,25 @@ import { HMCtrlMsg_ADD_TS } from "/f42/hack-man/classes/HMCtrlMsg.class";
  * This script attacks the requested server, opening all ports possible
  * and gaining root access
  */
-export async function main(ns: NS): void {
-  const opVars = {
-    targetSeverHostname: "",
-  };
+export async function main(ns: NS): Promise<void> {
+  const scriptTitle = "Compromise Server";
+  const scriptDescription = "Attack the requested server, open all ports possible, gain root access";
+  const logger = new Logger(ns, true, true, false, scriptTitle);
+  const feedback = logger.initFeedback(scriptTitle, scriptDescription);
+  const flags = feedback.flagValidator;
 
-  ns.tprintf("\n--------------------------");
-  ns.tprintf("Compromise Server");
+  flags.addStringFlag("target", "Target server's hostname", true);
+  flags.addStringFlag("add-tgt-list", "On sucessful compromise, add to HackManager target list", false);
 
-  if (ns.args.length < 1) {
-    ns.tprintf("- This script attacks the requested server, opening all ports possible and gaining root access");
-    ns.tprintf("Usage: run srv-compromise.js [targetServerHostname: string] [addAsTarget?: bool]");
-    ns.tprintf("- targetServerHostname: the host to target, required");
-    ns.tprintf("- addAsTarget (optional): if true, add to target server list for PortHandler if compromise is a success");
-    ns.tprintf("!! You must set all required args !!");
+  if(feedback.printHelpAndEnd()){
     return;
   }
 
+  const opVars = {
+    targetSeverHostname: flags.getFlagString("target"),
+  };
   const userHackLev = ns.getHackingLevel();
-  opVars.targetSeverHostname = ns.args[0];
-
-  const addAsTarget = ns.args[1] || false;
+  const addAsTarget = flags.getFlagBoolean("add-tgt-list");
 
   // calc the max number of ports we can open
   let userMaxHackPorts = 0;
@@ -48,33 +47,30 @@ export async function main(ns: NS): void {
     }
   }
 
-  ns.tprintf("- Your hack level is: %d", userHackLev);
-  ns.tprintf("- You can hack %d ports", userMaxHackPorts);
-
-  ns.tprintf("--------------------------");
-  ns.tprintf("Target server: %s", opVars.targetSeverHostname);
-
   const serverHackLev = ns.getServerRequiredHackingLevel(opVars.targetSeverHostname);
   const serverHackPorts = ns.getServerNumPortsRequired(opVars.targetSeverHostname);
   let hasRoot = ns.hasRootAccess(opVars.targetSeverHostname);
 
-  ns.tprintf("Target hack lev: %s", serverHackLev);
-  ns.tprintf("Target hack ports: %s", serverHackPorts);
-  ns.tprintf("Existing root: %s", hasRoot ? "Yes" : "No");
+  feedback.printTitle();
+  feedback.print("- Your hack level is: ", userHackLev);
+  feedback.printf("- You can hack %d ports", userMaxHackPorts);
+  feedback.printLineSeparator();
+  feedback.printHiLi(">> Target server: %s", opVars.targetSeverHostname);
+  feedback.printf("Target hack lev: %s", serverHackLev);
+  feedback.printf("Target hack ports: %s", serverHackPorts);
+  feedback.printf("Existing root: %s", hasRoot ? "Yes" : "No");
 
   if (hasRoot) {
-    ns.tprintf("--------------------------");
-    ns.tprintf("Root access exists on this sever, ending");
+    feedback.printLineSeparator();
+    feedback.printf("Root access exists on this sever, ending");
 
     if (addAsTarget) {
       // add as target
       HMCtrlMsg_ADD_TS.staticPush(ns, opVars.targetSeverHostname);
-      ns.tprintf("Added as target");
+      feedback.printf("Added as target");
     }
 
-    ns.tprintf("--------------------------");
-    ns.tprintf("END");
-    return;
+    feedback.printEnd();
   }
 
   let resultStr = "";
@@ -140,8 +136,7 @@ export async function main(ns: NS): void {
     }
   }
 
-  ns.tprintf("--------------------------");
-  ns.tprintf("Hack Result: %s", resultStr);
-  ns.tprintf("--------------------------");
-  ns.tprintf("END");
+  feedback.printLineSeparator();
+  feedback.printf("Hack Result: %s", resultStr);
+  feedback.printEnd();
 }

@@ -1,5 +1,5 @@
-import MsgBase from "/f42/classes/MsgBase.class";
-import MsgSocket from "/f42/classes/MsgSocket.class";
+import MsgBase from "/f42/classes/Messaging/MsgBase.class";
+import MsgSocket from "/f42/classes/Messaging/MsgSocket.class";
 import { PORT_HM_TARGETS } from "/f42/cfg/port-defs";
 import { timestampAsBase62Str } from "/f42/utility/utility-functions";
 import { HMTgtSrvListMsg_Interface } from "/f42/classes/helpers/interfaces";
@@ -8,12 +8,12 @@ import { MsgObjType } from "/f42/hack-man/classes/enums";
 /**
  * TargetServer list socket message for HackManager
  */
-export class HMTgtSrvListMsg extends MsgBase implements HMTgtSrvListMsg_Interface {
+export default class HMTgtSrvListMsg extends MsgBase implements HMTgtSrvListMsg_Interface {
   static portId: number = PORT_HM_TARGETS;
 
   #targets: string[];
 
-  static preHydrate(ns: NS, rawObj: HMTgtSrvListMsg_Interface): HMTgtSrvListMsg | boolean {
+  static preHydrate(ns: NS, rawObj: HMTgtSrvListMsg_Interface): HMTgtSrvListMsg | false {
     if (!rawObj) {
       return false;
     }

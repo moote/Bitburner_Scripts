@@ -4,12 +4,12 @@ export const RESULT_FLAG = "-THRALL-result";
 export const JOB_RESULT_PATH = "f42/thrall/tmp/%d" + RESULT_FLAG + ".txt";
 
 /** @param {NS} ns */
-export async function main(ns: NS): void {
-  const amount = await ns.hack(ns.args[0]);
+export async function main(ns: NS): Promise<void> {
+  const amount = await ns.hack(JSON.stringify(ns.args[0]));
   saveActionResult(ns, "hack", amount);
 }
 
-export async function saveActionResult(ns: NS, actionType: string, amount: number): void {
+export function saveActionResult(ns: NS, actionType: string, amount: number): void {
   const pathResult = ns.sprintf(JOB_RESULT_PATH, ns.pid);
   const dataResult: ThrallActionResult = {
     type: actionType,

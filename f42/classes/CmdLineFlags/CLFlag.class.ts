@@ -1,6 +1,7 @@
+import { dir } from 'console';
 import { AllowedFlagValue_Type, CLFlagObj, CLFlagValidationTypes, NSFlag_Type } from './CLFlagUtilities'
 
-abstract class CLFlag implements CLFlagObj {
+export abstract class CLFlag implements CLFlagObj {
   flag: string;
   defaultVal: AllowedFlagValue_Type;
   isRequired: boolean;
@@ -12,13 +13,23 @@ abstract class CLFlag implements CLFlagObj {
   errorMsg: string;
   isHelpRequest: boolean;
 
+  static formatFlagWithDashes(flag: string): string {
+    let flagStr = "-";
+
+    if (flag.length > 2) {
+      flagStr = `-${flagStr}`;
+    }
+
+    return `${flagStr}${flag}`;
+  }
+
   constructor(
     flag: string,
     defaultVal: AllowedFlagValue_Type,
     isRequired: boolean,
     description: string,
     validationType: CLFlagValidationTypes
-  ){
+  ) {
     this.flag = flag;
     this.defaultVal = defaultVal;
     this.isRequired = isRequired;
@@ -32,18 +43,25 @@ abstract class CLFlag implements CLFlagObj {
 
   abstract getClean(): AllowedFlagValue_Type;
 
+  get flagWithDashes(): string {
+    return CLFlag.formatFlagWithDashes(this.flag);
+  }
+
   get nsFlagArr(): NSFlag_Type {
     return [this.flag, this.defaultVal];
   }
 
-  get flagFull(): string {
-    let flagStr = "-";
-
-    if(this.flag.length > 2){
-      flagStr = flagStr + "-";
+  get isSet(): boolean {
+    if (!this.isValid) {
+      return false;
     }
 
-    return flagStr + this.flag;
+    if (!this.isRequired && this.cleanValue == this.defaultVal) {
+      return false;
+    }
+    else {
+      return true;
+    }
   }
 
   /**
@@ -55,16 +73,28 @@ abstract class CLFlag implements CLFlagObj {
    */
   validate(dirtyValue: AllowedFlagValue_Type | null): boolean {
     this.isValidated = true;
-    
-    if(dirtyValue === null){
+
+    if (dirtyValue === null) {
       this.isValid = false;
       this.errorMsg = `Not a valid ${this.validationType} (null)`;
     }
-    else{
+    else {
       this.isValid = true;
+      this.cleanValue = dirtyValue;
+      this.#validateRequired();
     }
 
     return this.isValid;
+  }
+
+  #validateRequired(): void {
+    // do requirement check if not already invalid
+    if(this.isValid){
+      if (this.isRequired && this.cleanValue === this.defaultVal) {
+        this.isValid = false;
+        this.errorMsg = `This is a required flag, can't match default`;
+      }
+    }
   }
 
   /**
@@ -74,11 +104,11 @@ abstract class CLFlag implements CLFlagObj {
   validateMissing(): boolean {
     this.isValidated = true;
 
-    if(this.isRequired){
+    if (this.isRequired) {
       this.isValid = false;
       this.errorMsg = "This is a required flag";
     }
-    else{
+    else {
       this.isValid = false;
     }
 
@@ -88,28 +118,24 @@ abstract class CLFlag implements CLFlagObj {
 
 export class StrClFlag extends CLFlag {
   defaultVal: string;
-  cleanValue!: string;
+  cleanValue: string;
 
   constructor(
     flag: string,
     description: string,
     isRequired = false,
     defaultVal = "",
-  ){
+  ) {
     super(flag, defaultVal, isRequired, description, CLFlagValidationTypes.STRING);
     this.defaultVal = defaultVal;
-    
-    // check if help request flag
-    if(this.flag === "h" || this.flag === "help"){
-      this.isHelpRequest = true;
-    }
+    this.cleanValue = defaultVal;
   }
 
   getClean(): string {
-    if(!this.isValidated){
+    if (!this.isValidated) {
       throw new Error(`${this.flag} not validated!`);
     }
-    else if(!this.isValid){
+    else if (!this.isValid) {
       throw new Error(`${this.flag} not valid: ${this.errorMsg}`);
     }
 
@@ -119,23 +145,24 @@ export class StrClFlag extends CLFlag {
 
 export class IntClFlag extends CLFlag {
   defaultVal: number;
-  cleanValue!: number;
+  cleanValue: number;
 
   constructor(
     flag: string,
     description: string,
     isRequired = false,
     defaultVal = 0,
-  ){
+  ) {
     super(flag, defaultVal, isRequired, description, CLFlagValidationTypes.INT);
     this.defaultVal = defaultVal;
+    this.cleanValue = defaultVal;
   }
 
   getClean(): number {
-    if(!this.isValidated){
+    if (!this.isValidated) {
       throw new Error(`${this.flag} not validated!`);
     }
-    else if(!this.isValid){
+    else if (!this.isValid) {
       throw new Error(`${this.flag} not valid: ${this.errorMsg}`);
     }
 
@@ -145,23 +172,24 @@ export class IntClFlag extends CLFlag {
 
 export class FloatClFlag extends CLFlag {
   defaultVal: number;
-  cleanValue!: number;
+  cleanValue: number;
 
   constructor(
     flag: string,
     description: string,
     isRequired = false,
     defaultVal = 0,
-  ){
+  ) {
     super(flag, defaultVal, isRequired, description, CLFlagValidationTypes.FLOAT);
     this.defaultVal = defaultVal;
+    this.cleanValue = defaultVal;
   }
 
   getClean(): number {
-    if(!this.isValidated){
+    if (!this.isValidated) {
       throw new Error(`${this.flag} not validated!`);
     }
-    else if(!this.isValid){
+    else if (!this.isValid) {
       throw new Error(`${this.flag} not valid: ${this.errorMsg}`);
     }
 
@@ -171,21 +199,27 @@ export class FloatClFlag extends CLFlag {
 
 export class BoolClFlag extends CLFlag {
   defaultVal: boolean;
-  cleanValue!: boolean;
+  cleanValue: boolean;
 
   constructor(
     flag: string,
     description: string
-  ){
+  ) {
     super(flag, false, false, description, CLFlagValidationTypes.BOOLEAN);
     this.defaultVal = false;
+    this.cleanValue = false;
+
+    // check if help request flag
+    if (this.flag === "h" || this.flag === "help") {
+      this.isHelpRequest = true;
+    }
   }
 
   getClean(): boolean {
-    if(!this.isValidated){
+    if (!this.isValidated) {
       throw new Error(`${this.flag} not validated!`);
     }
-    else if(!this.isValid){
+    else if (!this.isValid) {
       throw new Error(`${this.flag} not valid: ${this.errorMsg}`);
     }
 
@@ -195,22 +229,23 @@ export class BoolClFlag extends CLFlag {
 
 export class StrArrClFlag extends CLFlag {
   defaultVal: string[];
-  cleanValue!: string[];
+  cleanValue: string[];
 
   constructor(
     flag: string,
     description: string,
     isRequired = false
-  ){
+  ) {
     super(flag, [], isRequired, description, CLFlagValidationTypes.STRING_ARR);
     this.defaultVal = [];
+    this.cleanValue = [];
   }
 
   getClean(): string[] {
-    if(!this.isValidated){
+    if (!this.isValidated) {
       throw new Error(`${this.flag} not validated!`);
     }
-    else if(!this.isValid){
+    else if (!this.isValid) {
       throw new Error(`${this.flag} not valid: ${this.errorMsg}`);
     }
 

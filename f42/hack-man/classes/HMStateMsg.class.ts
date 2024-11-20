@@ -1,5 +1,5 @@
-import MsgBase from "/f42/classes/MsgBase.class";
-import MsgSocket from "/f42/classes/MsgSocket.class";
+import MsgBase from "/f42/classes/Messaging/MsgBase.class";
+import MsgSocket from "/f42/classes/Messaging/MsgSocket.class";
 import { PORT_HM_STATE } from "/f42/cfg/port-defs";
 import { timestampAsBase62Str } from "/f42/utility/utility-functions";
 import { HMState_Interface, HMStateMsg_Interface } from "/f42/classes/helpers/interfaces";
@@ -9,7 +9,7 @@ import { MsgObjType } from "/f42/hack-man/classes/enums";
 /**
  * TargetServer list socket message for HackManager
  */
-export class HMStateMsg extends MsgBase implements HMStateMsg_Interface {
+export default class HMStateMsg extends MsgBase implements HMStateMsg_Interface {
   static portId: number = PORT_HM_STATE;
 
   #state: HMState_Interface;

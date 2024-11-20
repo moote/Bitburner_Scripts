@@ -45,8 +45,8 @@ export default class ThrallControl {
    * Message dq and parse
    */
   getPotentialJob(): void {
-    let potentialJob: ThrallJob;
-    let jobAction: ThrallJobAction;
+    let potentialJob: ThrallJob | false;
+    let jobAction: ThrallJobAction | false;
     let acceptedJob = false;
 
     // get job
@@ -68,10 +68,8 @@ export default class ThrallControl {
           this.log("RUN(%s): %s >> %s", potentialJob.msgId, potentialJob.target, potentialJob.actionType);
 
           // add job to running list
-          potentialJob.msgAcceptedTs = Date.now();
-          potentialJob.isAccepted = true;
           potentialJob.result.actionedBy = this.hostname;
-          potentialJob.result.startTs = potentialJob.msgAcceptedTs;
+          potentialJob.result.startTs = Date.now();
           potentialJob.result.startAmt = jobAction.startAmt;
 
           // start job
@@ -102,7 +100,7 @@ export default class ThrallControl {
     }
   }
 
-  getJobAction(potentialJob: ThrallJob): ThrallJobAction {
+  getJobAction(potentialJob: ThrallJob): ThrallJobAction | false {
     switch (potentialJob.actionType) {
       case "weak":
         return {
@@ -201,14 +199,18 @@ export default class ThrallControl {
    * @param {number} jobPid
    */
   getActionResultFromFile(jobPid: number): ThrallActionResult {
-    return this.#readDataFromFile(this.getJobResultFPath(jobPid));
+    return <ThrallActionResult>this.#readDataFromFile(this.getJobResultFPath(jobPid));
   }
 
   /**
    * @param {number} jobPid
    */
   getRunningJobFromFile(jobPid: number): ThrallJob {
-    return this.#readDataFromFile(this.getRunningJobFPath(jobPid));
+    return <ThrallJob>this.#readDataFromFile(this.getRunningJobFPath(jobPid));
+  }
+
+  getCompJobFromFile(fpath: string) {
+    return <ThrallJob>this.#readDataFromFile(fpath);
   }
 
   /**
@@ -224,7 +226,7 @@ export default class ThrallControl {
       return data;
     }
     else {
-      return false;
+      throw new Error("Can't read data from: " + fPath);
     }
   }
 
@@ -291,10 +293,16 @@ export default class ThrallControl {
   }
 
   getPidFromFPath(fPath: string): number {
-    return parseInt(fPath.split("-")[0].split("/").pop());
+    const pid = fPath.split("-")[0].split("/").pop();
+
+    if(typeof pid === "undefined"){
+      throw new Error("Could not read pid");
+    }
+
+    return parseInt(pid);
   }
 
-  strfy(data: ThrallJob | ThrallJobAction): string {
+  strfy(data: ThrallJob | ThrallJobAction | ThrallActionResult): string {
     return JSON.stringify(data, null, 2);
   }
 
@@ -307,11 +315,9 @@ export default class ThrallControl {
       this.log("READ_COMP: %s", compFilePath);
 
       // pop message
-      const msg = this.#readDataFromFile(compFilePath);
+      const msg = this.getCompJobFromFile(compFilePath);
 
-      // set message sent props
-      msg.msgReturnedTs = Date.now();
-      msg.isReturned = true;
+      // set message sent
       let msgSent = false;
 
       this.log("TRY_SEND: %s", msg.msgId);
@@ -366,7 +372,7 @@ export default class ThrallControl {
   /**
    * 
    */
-  popMessage(portId: number): ThrallJob | boolean {
+  popMessage(portId: number): ThrallJob | false {
     const mqPortHandle = this.ns.getPortHandle(portId);
 
     if (!mqPortHandle) {

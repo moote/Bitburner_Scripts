@@ -3,12 +3,11 @@ import ActionBase from "/f42/hack-man/classes/ActionBase.class";
 import WeakenAction from "/f42/hack-man/classes/ActionWeaken.class";
 import GrowAction from "/f42/hack-man/classes/ActionGrow.class";
 import HackAction from "/f42/hack-man/classes/ActionHack.class";
-// import { MsgErrorInvalidActionType } from "/f42/hack-man/classes/MsgException.class";
-import { Server } from "@ns";
-import F42Logger from "/f42/classes/f42-logger-class";
+import Logger from "/f42/classes/Logger.class";
 import { ActionType, TgtSrvOpMode, TgtSrvOpModeStatus, TgtSrvStatus } from "/f42/hack-man/classes/enums";
 import { getEmpty_JobState_Interface, getEmpty_Server } from "/f42/classes/helpers/empty-object-getters";
 import { HasState_Interface, HMJobMsg_Interface, JobState_Interface, TSrvState_Interface } from "/f42/classes/helpers/interfaces";
+import { Server } from "@ns";
 
 type ActionList_Type = [
   WeakenAction,
@@ -30,11 +29,11 @@ export default class TargetServer extends F42Base implements HasState_Interface 
 
   /**
    * @param {object} ns
-   * @param {F42Logger} logger
+   * @param {Logger} logger
    * @param {string} hostname
    */
   constructor(
-    logger: F42Logger,
+    logger: Logger,
     hostname: string,
     metaId: string,
     initialStatus: TgtSrvStatus = TgtSrvStatus.NEW,

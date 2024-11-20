@@ -1,6 +1,6 @@
 import { Server } from "@ns";
-import MsgQueue from "/f42/classes/MsgQueue.class";
-import MsgSocket from "/f42/classes/MsgSocket.class";
+import MsgQueue from "/f42/classes/Messaging/MsgQueue.class";
+import MsgSocket from "/f42/classes/Messaging/MsgSocket.class";
 import { ActionType, CtrlMsgAct, HMOpMode, JobMsgStatus, MsgObjType, TgtSrvOpMode } from "/f42/hack-man/classes/enums";
 import ActionJob from "/f42/hack-man/classes/ActionJob.class";
 

@@ -3,13 +3,14 @@ export interface ThrallJob {
     target: string,
     actionType: string,
     threads: number,
-    msgAcceptedTs: number,
-    isAccepted: false,
     result: {
-        actionedBy: "",
-        startTs: number,
-        startAmt: number,
-        pid: number,
+        pid: number;
+        actionedBy: string;
+        startTs: number;
+        endTs: number;
+        startAmt: number;
+        endAmt: number;
+        amt: number;
     }
 }
 

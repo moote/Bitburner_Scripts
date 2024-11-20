@@ -21,7 +21,7 @@ async function gangTest(ns: NS): Promise<void> {
     const logger = new Logger(ns, true, true, false, scriptTitle, false);
     const scriptDescription = "";
     const feedback = logger.initFeedback(scriptTitle, scriptDescription);
-    if (feedback === false) {
+    if (feedback.printHelpAndEnd()) {
         return;
     }
 

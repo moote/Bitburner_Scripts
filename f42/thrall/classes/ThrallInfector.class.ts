@@ -1,5 +1,5 @@
 import { NS } from '@ns'
-import F42Feedback from '/f42/classes/f42-feedback-class';
+import FeedbackRenderer from '/f42/classes/FeedbackRenderer';
 
 export const VERSION = 22;
 const ORDER_66_PORT = 66;
@@ -23,15 +23,14 @@ export default class ThrallInfector {
    * Copies thrall payload to purchsed servers with wrong/missing
    * version. Starts processing if o66 inactive.
    * 
-   * @param {F42Feedback} feedback
    */
-  static propagateSelf(feedback: F42Feedback): void {
+  static propagateSelf(feedback: FeedbackRenderer): void {
     for (const pServ of feedback.ns.getPurchasedServers()) {
       if (!ThrallInfector.isVersionFileValid(feedback.ns, pServ)) {
         feedback.ns.scp(PAYLOAD_FILES, pServ, HOME);
 
         if (!ThrallInfector.isOrder66Active(feedback.ns)) {
-          ns.exec(PAYLOAD_FILES[0], pServ);
+          feedback.ns.exec(PAYLOAD_FILES[0], pServ);
           feedback.print("- Payload installed and started on: ", pServ);
         }
         else {
@@ -74,7 +73,7 @@ export default class ThrallInfector {
    * @param {NS} ns
    * @param {string} hostname
    */
-  static isVersionFileValid(ns: string, hostname: string): void {
+  static isVersionFileValid(ns: NS, hostname: string): boolean {
     return ns.fileExists(VERSION_FILE_PATH, hostname);
   }
 
@@ -85,18 +84,15 @@ export default class ThrallInfector {
    * @param {NS} ns
    * @param {string} hostname
    */
-  static startControl(ns: string, hostname: string): void {
+  static startControl(ns: NS, hostname: string): void {
     ns.exec(PAYLOAD_FILES[0], hostname, 1, "-v", VERSION);
   }
 
   #ns: NS;
-  #feedback: F42Feedback;
+  #feedback: FeedbackRenderer;
   #order66Active: boolean;
 
-  /**
-   * @param {F42Feedback} feedback
-   */
-  constructor(feedback: F42Feedback) {
+  constructor(feedback: FeedbackRenderer) {
     this.#ns = feedback.ns;
     this.#feedback = feedback;
 
@@ -116,10 +112,7 @@ export default class ThrallInfector {
     return this.#ns;
   }
 
-  /**
-   * @returns {F42Feedback}
-   */
-  get feedback(): F42Feedback {
+  get feedback(): FeedbackRenderer {
     return this.#feedback;
   }
 

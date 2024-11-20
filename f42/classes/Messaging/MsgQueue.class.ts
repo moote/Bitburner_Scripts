@@ -1,4 +1,4 @@
-import MsgPort from "./MsgPort.class";
+import MsgPort from "/f42/classes/Messaging/MsgPort.class";
 import { MSG_QUEUES, PORT_TYPE_QUEUE } from "/f42/cfg/port-defs";
 
 /**

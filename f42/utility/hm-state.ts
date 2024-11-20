@@ -1,33 +1,32 @@
-import F42Logger from '/f42/classes/f42-logger-class';
-// import F42ClFlagDef from "/scripts/classes/f42-cl-flag-def-class.js";
-import { PORT_HM_STATE } from '/f42/cfg/port-defs';
+import Logger from '/f42/classes/Logger.class';
 import { getActivityVisStr } from '/f42/utility/utility-functions';
-import { F42_ANSI_COL_HILI, F42_ANSI_COL_TXT } from '/f42/classes/f42-feedback-class';
-import { MsgSocketReader } from '/f42/classes/MsgSocketReader.class';
+import { F42_ANSI_COL_HILI, F42_ANSI_COL_TXT } from "f42/classes/FeedbackRenderer"
+import { HMStateMsgReader } from '/f42/hack-man/classes/HMStateMsgReader.class';
 
 /** @param {NS} ns */
 export async function main(ns: NS): Promise<void> {
   const scriptTitle = "HackManager:State";
-  const logger = new F42Logger(ns, false, false, true, scriptTitle, true);
   const scriptDescription = "Renders content of HM state port";
-  const scriptFlags = [];
-  const feedback = logger.initFeedback(scriptTitle, scriptDescription, scriptFlags);
+  const logger = new Logger(ns, false, false, true, scriptTitle, true);
+  const feedback = logger.initFeedback(scriptTitle, scriptDescription);
 
-  if (!feedback) {
+  if (feedback.printHelpAndEnd()) {
     return;
   }
 
-  const msgScktReader = new MsgSocketReader(ns, PORT_HM_STATE);
+  const hmStateMsgReader = new HMStateMsgReader(ns);
 
   while (true) {
-    if (!msgScktReader.peekMessage()) {
+    const hmStateMsg = hmStateMsgReader.peekMessage();
+
+    if(hmStateMsg === false){
       ns.clearLog();
       feedback.printErr("No data on status port, waiting 3s...");
       await ns.sleep(3000);
       continue;
     }
 
-    const sData = msgScktReader.peekMessage().state;
+    const sData = hmStateMsg.state;
 
     // feedback.printf(msgScktReader.peekMessage().state);
     // await ns.sleep(500);
@@ -65,7 +64,7 @@ export async function main(ns: NS): Promise<void> {
         tgtData.totalGrown,
         tgtData.totalHacked,
         ns.formatNumber(rate, 2) + "/s",
-        tgtData.completedJobs,
+        tgtData.compJobs,
         "-",
         tgtData.activeJob.type,
         fmatNumber(ns, tgtData.activeJob.estAmt),
@@ -81,7 +80,7 @@ export async function main(ns: NS): Promise<void> {
       totals.hack += tgtData.raw.totalHacked;
     }
 
-    const colSpecs = [
+    const colSpecs: [number, string, false | string, boolean, string][] = [
       [maxHostLen, "Target", false, false, 'Totals:'],
       [8, "Weak", false, false, ns.formatNumber(totals.weak, 2)],
       [8, "Grow($)", false, false, ns.formatNumber(totals.weak, 2)],
@@ -98,9 +97,9 @@ export async function main(ns: NS): Promise<void> {
       [4, "Amt", false, true, ""],
     ];
 
-    let hRowFormat: string[] | string = [];
-    let rowFormat = [];
-    let hackRowFormat = [];
+    const hRowFormat: string[] | string = [];
+    const rowFormat = [];
+    const hackRowFormat = [];
     const colTitles = [];
     const colSpacers = [];
     const colTotals = [];
@@ -127,27 +126,27 @@ export async function main(ns: NS): Promise<void> {
       colTotals.push(colSpec[4]);
     }
 
-    hRowFormat = hRowFormat.join(" | ");
-    rowFormat = rowFormat.join(" | ");
-    hackRowFormat = hackRowFormat.join(" | ");
+    const hRowFormatStr = hRowFormat.join(" | ");
+    const rowFormatStr = rowFormat.join(" | ");
+    const hackRowFormatStr = hackRowFormat.join(" | ");
 
     ns.clearLog();
     feedback.title = ns.sprintf("HackManager v%s (%s)", sData.meta.ver, sData.meta.id);
     feedback.printTitle(false);
     feedback.printSubTitle("Targets:");
-    feedback.printHiLi(hRowFormat, ...colTitles);
-    feedback.printHiLi(hRowFormat, ...colSpacers);
+    feedback.printHiLi(hRowFormatStr, ...colTitles);
+    feedback.printHiLi(hRowFormatStr, ...colSpacers);
 
     for (const row of targets) {
       feedback.printf(
-        (row[7] == "hack" ? hackRowFormat : rowFormat),
+        (row[7] == "hack" ? hackRowFormatStr : rowFormatStr),
         ...row
       );
     }
 
-    feedback.printHiLi(hRowFormat, ...colSpacers);
-    feedback.printHiLi(hRowFormat, ...colTotals);
-    feedback.printHiLi(hRowFormat, ...colSpacers);
+    feedback.printHiLi(hRowFormatStr, ...colSpacers);
+    feedback.printHiLi(hRowFormatStr, ...colTotals);
+    feedback.printHiLi(hRowFormatStr, ...colSpacers);
     feedback.printHiLi("- %d Targets with low earnings hidden", skippedTargets);
 
     feedback.printf(getActivityVisStr(feedback.ns));
@@ -155,7 +154,7 @@ export async function main(ns: NS): Promise<void> {
   }
 }
 
-function timeFormat(ns:NS, time: number) {
+function timeFormat(ns: NS, time: number) {
   if (!time) {
     return "-";
   }

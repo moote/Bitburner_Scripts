@@ -1,6 +1,5 @@
-import MsgPort from '/f42/classes/MsgPort.class';
-import MsgQueue from '/f42/classes/MsgQueue.class';
-import MsgSocket from '/f42/classes/MsgSocket.class';
+import MsgQueue from '/f42/classes/Messaging/MsgQueue.class';
+import MsgSocket from '/f42/classes/Messaging/MsgSocket.class';
 import { MsgObj_Interface, MsgObjData_Interface } from '/f42/classes/helpers/interfaces';
 import { MsgObjType } from '/f42/hack-man/classes/enums';
 

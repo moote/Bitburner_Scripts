@@ -38,7 +38,7 @@ export function getEmpty_HMState_Interface(): HMState_Interface {
       initTs: 0,
     },
     targets: {},
-    gen: 0,
+    gen: "",
   };
 }
 
