@@ -1,8 +1,8 @@
-import { HMStateMsg_Interface, HMTgtSrvListMsg_Interface, MsgObjData_Interface } from "/f42/classes/helpers/interfaces";
+import { GeneralCfgMsg_Interface, HMStateMsg_Interface, HMTgtSrvListMsg_Interface, MsgObjData_Interface } from "/f42/classes/helpers/interfaces";
 import MsgSocket from "/f42/classes/Messaging/MsgSocket.class";
 import { MsgObjType } from "/f42/hack-man/classes/enums";
 
-export type MsgScktAcceptedMsg_Type = HMTgtSrvListMsg_Interface | HMStateMsg_Interface;
+export type MsgScktAcceptedMsg_Type = GeneralCfgMsg_Interface | HMTgtSrvListMsg_Interface | HMStateMsg_Interface;
 
 /**
  * A message queue that is fixed to one port,
@@ -29,6 +29,10 @@ export default class MsgSocketReader extends MsgSocket {
     return msg.msgType === MsgObjType.TS_LIST;
   }
 
+  isGeneralCfgMsg_Interface(msg: MsgObjData_Interface): msg is GeneralCfgMsg_Interface {
+    return msg.msgType === MsgObjType.GENERAL_CFG;
+  }
+
   /**
    * @deprecated This is a read only queue; do not use
    */
@@ -48,7 +52,11 @@ export default class MsgSocketReader extends MsgSocket {
     if(msg === false){
       return false;
     }
-    else if (this.isHMStateMsg_Interface(msg) || this.isHMTgtSrvListMsg_Interface(msg)) {
+    else if (
+      this.isHMStateMsg_Interface(msg)
+      || this.isHMTgtSrvListMsg_Interface(msg)
+      || this.isGeneralCfgMsg_Interface(msg)
+    ) {
       return msg;
     }
     else {

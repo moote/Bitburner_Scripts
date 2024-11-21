@@ -1,6 +1,8 @@
 import { Server } from "@ns";
 import { ActionType, CtrlMsgAct, MsgObjType } from "/f42/hack-man/classes/enums";
-import { HMCtrlMsg_Interface, HMJobMsgResult_Interface, HMState_Interface, JobState_Interface, TSrvState_Interface } from "/f42/classes/helpers/interfaces";
+import { GeneralCfgMsg_Interface, HMCtrlMsg_Interface, HMJobMsgResult_Interface, HMState_Interface, JobState_Interface, TSrvState_Interface } from "/f42/classes/helpers/interfaces";
+import { PORT_GENERAL_CFG, PORT_HM_CTRL } from "/f42/cfg/port-defs";
+import { timestampAsBase62Str } from "/f42/utility/utility-functions";
 
 // \\\\\\\\\\\\\\\\\
 // Server
@@ -95,8 +97,23 @@ export function getEmpty_HMJobMsgResult(): HMJobMsgResult_Interface {
 export function getEmpty_HMCtrlMsg(): HMCtrlMsg_Interface {
   return {
     action: CtrlMsgAct.PAUSE,
-    msgId: "",
-    portId: 0,
+    msgId: timestampAsBase62Str(),
+    portId: PORT_HM_CTRL,
     msgType: MsgObjType.BASE,
+  };
+}
+
+export function getEmpty_GeneralCfgMsg(): GeneralCfgMsg_Interface {
+  return {
+    msgId: timestampAsBase62Str(),
+    portId: PORT_GENERAL_CFG,
+    msgType: MsgObjType.GENERAL_CFG,
+    purchasedServers: {
+      serverLimit: 0,
+      ramTargetGb: 0,
+      purchaseLoopDelayMS: 2001,
+      upgradeLoopDelayMS: 2001,
+      debugMode: false,
+    }
   };
 }

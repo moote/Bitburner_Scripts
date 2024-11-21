@@ -58,7 +58,7 @@ export default class HackManager extends F42Base {
 
   constructor(logger: Logger) {
     super(logger);
-    this.#vaildateSingleton();
+    this.vaildateSingleton();
     this.#opMode = HMOpMode.HACK;
     this.#tradeTgtState = HMTradeTargetState.NO_TARGET
     this.#init();
@@ -104,17 +104,6 @@ export default class HackManager extends F42Base {
 
     // update target list port
     this.#postTargetList();
-  }
-
-  /**
-   * Enforce single instance
-   */
-  #vaildateSingleton(): void {
-    for (const psInfo of this.ns.ps()) {
-      if (psInfo.filename == this.ns.getScriptName() && this.ns.pid != psInfo.pid) {
-        throw new Error("Not started, already running; only one instance of HackManager can run at a time.\n* Running instance not affected.");
-      }
-    }
   }
 
   ////////////////////////

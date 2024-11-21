@@ -63,7 +63,6 @@ export async function main(ns: NS): Promise<void> {
       feedback.printTitle(false);
       feedback.printf(">> p: %d", flags.getFlagNumber("p"));
       feedback.printf(">> message: %s", JSON.stringify(msg, null, 2));
-      feedback.printf(timestampAsBase62Str());
       feedback.printEnd();
       await ns.sleep(250);
     }

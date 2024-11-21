@@ -5,7 +5,7 @@ import { HMCtrlMsg_ADD_TS } from "/f42/hack-man/classes/HMCtrlMsg.class";
 
 const F42_HM_DEBUG = true;
 const F42_HM_DEBUG_TARGET: string[] = [
-  // "foodnstuff",
+  "foodnstuff",
   // "nectar-net",
   // "sigma-cosmetics",
   // "joesguns",

@@ -1,5 +1,6 @@
 import Logger from '/f42/classes/Logger.class';
 import CmdLineFlagValidator from './CmdLineFlags/CLFlagValidator.class';
+import { timestampAsBase62Str } from '/f42/utility/utility-functions';
 
 export const F42_ANSI_COL_H1 = "\x1b[38;5;207m";
 export const F42_ANSI_COL_H2 = "\x1b[38;5;219m";
@@ -68,13 +69,13 @@ export default class FeedbackRenderer {
     }
   }
 
-  printSubTitle(msgTemplate: string, ...msgArgs: (string | number | boolean)[]): void {
+  printSubTitle(msgTemplate: string, ...msgArgs: any[]): void {
     this.printLineSeparator(F42_ANSI_COL_H2);
     this.#doFeedback(F42_ANSI_COL_H2 + msgTemplate, ...msgArgs);
     this.printLineSeparator(F42_ANSI_COL_H2);
   }
 
-  printHiLi(msgTemplate: string, ...msgArgs: (string | number | boolean)[]): void {
+  printHiLi(msgTemplate: string, ...msgArgs: any[]): void {
     this.#doFeedback(F42_ANSI_COL_HILI + msgTemplate, ...msgArgs);
   }
 
@@ -83,7 +84,7 @@ export default class FeedbackRenderer {
    * 
    * @param msgArgs
    */
-  print(...msgArgs: (string | number | boolean)[]): void {
+  print(...msgArgs: any[]): void {
     this.#doFeedback(F42_ANSI_COL_TXT + msgArgs.join(""));
   }
 
@@ -93,7 +94,7 @@ export default class FeedbackRenderer {
    * @param format
    * @param msgArgs
    */
-  printf(format: string, ...msgArgs: (string | number | boolean)[]): void {
+  printf(format: string, ...msgArgs: any[]): void {
     this.#doFeedback(F42_ANSI_COL_TXT + format, ...msgArgs);
   }
 
@@ -114,7 +115,7 @@ export default class FeedbackRenderer {
   /**
    * Error render function
    */
-  printErr(errorMsg: string, ...errorMsgArgs: (string | number | boolean)[]): void {
+  printErr(errorMsg: string, ...errorMsgArgs: any[]): void {
     this.#doFeedback(F42_ANSI_COL_ERR + errorMsg, ...errorMsgArgs);
   }
 
@@ -123,7 +124,7 @@ export default class FeedbackRenderer {
    */
   printEnd(): void {
     this.printLineSeparator();
-    this.#doFeedback(F42_ANSI_COL_TXT + "END\n\n");
+    this.#doFeedback(`${F42_ANSI_COL_TXT}END (${timestampAsBase62Str()})`);
   }
 
   /**
@@ -148,11 +149,11 @@ export default class FeedbackRenderer {
     }
   }
 
-  addUserDefError(flag: string, errorMsg: string, ...errArgs: (string | number | boolean)[]): void {
+  addUserDefError(flag: string, errorMsg: string, ...errArgs: any[]): void {
     this.#flagValidator.addError(flag, this.ns.sprintf(errorMsg, ...errArgs));
   }
 
-  addUserDefErrorAndEnd(flag: string, errorMsg: string, ...errArgs: (string | number | boolean)[]): void {
+  addUserDefErrorAndEnd(flag: string, errorMsg: string, ...errArgs: any[]): void {
     this.addUserDefError(flag, errorMsg, ...errArgs);
     this.printHelpAndEnd();
   }

@@ -1,54 +1,32 @@
-alias ll="ls -l";
-alias dir="cls; cd /scripts; ls -l; ls /scripts/dynamic -l; ls /scripts/dynamic/v2 -l; ls /scripts/purchased-servers -l; ls /scripts/utility -l; ls /scripts/classes -l; ls /scripts/test -l; ls /scripts/cfg -l; ls /scripts/dynamic/v2/thrall -l";
+alias ll=ls -l
+alias thrall-control=run /f42/thrall/control.js
+alias hm-add-target=run /f42/utility/add-target-server.js
+alias hm-run=run /f42/hack-man/hack-manager.js
+alias hm-state=run /f42/utility/hm-state.js
+alias dummy-thrall-control=run /f42/thrall/dummy.js
+alias auto-target=run /f42/utility/auto-targeter.js
 
-alias infect-test="run /scripts/dynamic/f42-infect-run.js";
-alias infect-test-all="run /scripts/dynamic/f42-infect-run.js --verbose";
-alias infect-run="run /scripts/dynamic/f42-infect-run.js --infect";
-alias port-loader-infect="run /scripts/dynamic/f42-infect-port-loader.js";
+alias purch-srvs=run /scripts/purchased-servers/manage-purchased-servers.js
 
-alias srv-prices="run /scripts/fab42-srv-prices.js";
-alias find-richest="run /scripts/fab42-find-richest-srv.js";
-alias list-cmp="run /scripts/fab42-list-cmp-servers.js";
-alias watch-srv="run /scripts/fab42-watch-srv.js";
+alias order66-activate=run /f42/thrall/infector.js --o66-act
+alias order66-deactivate=run /f42/thrall/infector.js --o66-deact
+alias thrall-propagate=run /f42/thrall/infector.js -p
+alias thrall-infector-run=run /f42/thrall/infector.js
+alias order66-status=run /f42/thrall/infector.js --o66-test
 
-alias srv-comp="run /f42/utility/compromise-server.js";
+alias peek-queue=run /f42/utility/peek-msg-queue.js
+alias peek-sckt=run /f42/utility/peek-msg-socket.js
 
-alias test-hack="run /scripts/dynamic/v2/hack-test.js";
-alias route="run /scripts/fab42-route-to-srv.js";
+alias hmc-add-tgt=run /f42/utility/hm-control.js --add-tgt
+alias hmc-rm-tgt=run /f42/utility/hm-control.js --rm-tgt
+alias hmc-om-hack=run /f42/utility/hm-control.js --om-hack
+alias hmc-om-trade-tgt=run /f42/utility/hm-control.js --om-trade-tgt
+alias hmc-tt-grow-max=run /f42/utility/hm-control.js --tt-grow-max
+alias hmc-tt-hack-min=run /f42/utility/hm-control.js --tt-hack-min
 
-alias llv3="ls /scripts/dynamic/v3 -l";
-alias v3-test="run /scripts/dynamic/v3/v3-test.js";
-
-alias hm-force-bup="run /scripts/dynamic/v2/add-target-server.js --force-bup";
-alias hm-reset="run /scripts/dynamic/v2/add-target-server.js --reset-hack-manager";
-alias hm-add-target="run /scripts/dynamic/v3/add-target-server.js";
-alias hm-clear-actions="run /scripts/dynamic/v2/add-target-server.js --clear-actions";
-alias hm-state="run /scripts/dynamic/v3/hm-state.js";
-
-alias auto-target="run /scripts/dynamic/v3/auto-targeter.js";
-alias port-util="run /scripts/dynamic/v3/cfg-port-util.js";
-alias purch-srvs="run /scripts/purchased-servers/manage-purchased-servers.js";
-
-alias llf42="cls; cd /f42; ls /f42 -l; ls /f42/classes -l; ls /f42/gang -l; ls /f42/thrall -l; ls /f42/utility -l";
-alias order66-activate="run /f42/thrall/infector.js --o66-act";
-alias order66-deactivate="run /f42/thrall/infector.js --o66-deact";
-alias order66-status="run /f42/thrall/infector.js --o66-test";
-alias dummy-thrall-control="run /f42/thrall/dummy.js";
-alias thrall-control="run /f42/thrall/control.js";
-alias thrall-propagate="run /f42/thrall/infector.js -p";
-alias thrall-infector-run="run /f42/thrall/infector.js";
-
-alias peek-queue="run /f42/utility/peek-msg-queue.js";
-alias peek-sckt="run /f42/utility/peek-msg-socket.js";
-alias hm-run="run /f42/hack-man/hack-manager.js";
-alias hm-add-target="run /f42/utility/add-target-server.js";
-alias auto-target="run /f42/utility/auto-targeter.js";
-alias hm-state="run /f42/utility/hm-state.js";
-
-```New controller aliases
-alias hmc-add-tgt="run /f42/utility/hm-control.js --add-tgt";
-alias hmc-rm-tgt="run /f42/utility/hm-control.js --rm-tgt";
-alias hmc-om-hack="run /f42/utility/hm-control.js --om-hack";
-alias hmc-om-trade-tgt="run /f42/utility/hm-control.js --om-trade-tgt";
-alias hmc-tt-grow-max="run /f42/utility/hm-control.js --tt-grow-max";
-alias hmc-tt-hack-min="run /f42/utility/hm-control.js --tt-hack-min";
+alias echo=run /f42/utility/echo.js
+alias watch=run /f42/utility/watch-server.js --target
+alias dir=cls; cd /f42; ls /f42 -l; ls /f42/classes -l; ls /f42/classes/CmdLineFlags -l; ls /f42/classes/Messaging -l; ls /f42/classes/helpers -l; ls /f42/gang -l; ls /f42/hack-man -l; ls /f42/hack-man/classes -l; ls /f42/thrall -l; ls /f42/utility -l
+alias prices=run /f42/utility/list-server-prices.js
+alias list-compromised=run /f42/utility/list-compromised-servers.js
+alias load-cfg-socket=run /f42/utility/general-cfg-loader.js

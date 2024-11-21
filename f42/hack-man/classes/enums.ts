@@ -6,6 +6,7 @@ export enum MsgObjType {
   JOB,
   TS_LIST,
   HM_STATE,
+  GENERAL_CFG,
 }
 
 

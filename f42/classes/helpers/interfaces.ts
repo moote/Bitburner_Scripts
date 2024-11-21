@@ -33,11 +33,25 @@ export interface MsgObjData_Interface {
   msgType: MsgObjType;
 }
 
-export interface MsgObj_Interface extends MsgObjData_Interface{
+export interface MsgObj_Interface extends MsgObjData_Interface {
   msgPort: MsgQueue | MsgSocket;
   push: () => boolean;
   serialize: () => MsgObjData_Interface;
   hydrate: (dataObj: MsgObjData_Interface) => void;
+}
+
+// GENERAL CFG SOCKET
+
+export interface GeneralCfgMsg_Interface extends MsgObjData_Interface {
+  purchasedServers: GeneralCfgMsgPSrv_Interface;
+}
+
+export interface GeneralCfgMsgPSrv_Interface {
+  serverLimit: number;
+  ramTargetGb: number;
+  purchaseLoopDelayMS: number;
+  upgradeLoopDelayMS: number;
+  debugMode: boolean;
 }
 
 // HACK MANAGER CTRL
@@ -75,7 +89,7 @@ export interface HMJobMsgWrapper_Interface extends HMJobMsg_Interface {
   totThreads: number;
   estAmt: number;
   estTime: number;
-  
+
   // result: HMJobMsgResult_Interface;
 }
 

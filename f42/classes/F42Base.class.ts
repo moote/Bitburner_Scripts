@@ -38,6 +38,17 @@ export default class F42Base {
     return this.#logger;
   }
 
+  /**
+   * Enforce single instance
+   */
+  vaildateSingleton(): void {
+    for (const psInfo of this.ns.ps()) {
+      if (psInfo.filename == this.ns.getScriptName() && this.ns.pid != psInfo.pid) {
+        throw new Error("Not started, already running; only one instance can run at a time.\n* Running instance not affected.");
+      }
+    }
+  }
+
   getLo(logFlag: string, msgTemplate = "", ...msgArgs: any[]): LogL {
     if (!(logFlag in this.#logLinks)) {
       this.#logLinks[logFlag] = new LogL(this, logFlag);
@@ -124,6 +135,30 @@ export class LogL {
    */
   g(msgTemplate = "", ...msgArgs: any[]): void {
     this.#f42Base.loglLog(this.#logFlag, msgTemplate, ...msgArgs);
+  }
+
+  gF(msgTemplate = "", ...msgArgs: any[]): void {
+    this.#f42Base.loglLog(this.#logFlag, msgTemplate, ...msgArgs);
+    
+    if(typeof this.#f42Base.logger.feedback !== "undefined"){
+      this.#f42Base.logger.feedback.printf(msgTemplate, ...msgArgs); 
+    }
+  }
+
+  gFHiLi(msgTemplate = "", ...msgArgs: any[]): void {
+    this.#f42Base.loglLog(this.#logFlag, msgTemplate, ...msgArgs);
+
+    if(typeof this.#f42Base.logger.feedback !== "undefined"){
+      this.#f42Base.logger.feedback.printHiLi(msgTemplate, ...msgArgs); 
+    }
+  }
+
+  gFErr(msgTemplate = "", ...msgArgs: any[]): void {
+    this.#f42Base.loglLog(this.#logFlag, msgTemplate, ...msgArgs);
+
+    if(typeof this.#f42Base.logger.feedback !== "undefined"){
+      this.#f42Base.logger.feedback.printErr(msgTemplate, ...msgArgs); 
+    }
   }
 
   /**

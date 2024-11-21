@@ -12,7 +12,7 @@ export const PORT_TYPE_QUEUE = "queue";
 // 1
 // 2
 export const PORT_HM_CTRL = 3;
-export const PORT_HACK_CFG = 4;
+export const PORT_GENERAL_CFG = 4;
 export const PORT_HM_TARGETS = 5;
 export const PORT_HM_STATE = 6;
 // 7
@@ -34,7 +34,7 @@ export const MSG_QUEUES = [
 ];
 
 export const MSG_SOCKETS = [
-  PORT_HACK_CFG,
+  PORT_GENERAL_CFG,
   PORT_HM_TARGETS,
   PORT_HM_STATE,
 ];
