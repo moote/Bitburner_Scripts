@@ -7,8 +7,8 @@ export enum MsgObjType {
   TS_LIST,
   HM_STATE,
   GENERAL_CFG,
+  STONK_TRADE,
 }
-
 
 // HackManager
 

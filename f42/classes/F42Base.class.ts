@@ -14,6 +14,8 @@ export default class F42Base {
   allowedLogFunctions: string[];
   onlyVerboseLogs: boolean;
   #logLinks: { [key: string]: LogL; };
+  #doLoglVar = false;
+  #loglVar = "";
 
   /**
    * 
@@ -36,6 +38,14 @@ export default class F42Base {
 
   get logger(): Logger {
     return this.#logger;
+  }
+
+  set doLoglVar(loglToVar: boolean) {
+    this.#doLoglVar = loglToVar;
+  }
+
+  get loglVar(): string {
+    return this.#loglVar;
   }
 
   /**
@@ -72,7 +82,20 @@ export default class F42Base {
    * Only to be called from LogL class
    */
   loglLog(functionName: string, msgTemplate = "", ...msgArgs: (string | number)[]): string {
-    return this.#doLog(true, functionName, msgTemplate, ...msgArgs);
+    if(this.#doLoglVar){
+      this.#loglVar  = this.#loglVar + this.ns.sprintf(
+        `${functionName} ${msgTemplate}\n`,
+        ...msgArgs
+      );
+      return functionName;
+    }
+    else{
+      return this.#doLog(true, functionName, msgTemplate, ...msgArgs);
+    }
+  }
+
+  clearLoglVar(): void {
+    this.#loglVar = "";
   }
 
   #doLog(isLogl: boolean, functionName: string, msgTemplate = "", ...msgArgs: (string | number)[]): string {

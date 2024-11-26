@@ -5,7 +5,7 @@ import GrowAction from "/f42/hack-man/classes/ActionGrow.class";
 import HackAction from "/f42/hack-man/classes/ActionHack.class";
 import Logger from "/f42/classes/Logger.class";
 import { ActionType, TgtSrvOpMode, TgtSrvOpModeStatus, TgtSrvStatus } from "/f42/hack-man/classes/enums";
-import { getEmpty_JobState_Interface, getEmpty_Server } from "/f42/classes/helpers/empty-object-getters";
+import { getEmpty_JobState_Interface } from "/f42/classes/helpers/empty-object-getters";
 import { HasState_Interface, HMJobMsg_Interface, JobState_Interface, TSrvState_Interface } from "/f42/classes/helpers/interfaces";
 import { Server } from "@ns";
 
@@ -22,7 +22,7 @@ export default class TargetServer extends F42Base implements HasState_Interface 
   #doneInit = false;
   #metaId: string;
   #hostname: string;
-  #srvObj: Server;
+  #srvObj!: Server;
   #status = TgtSrvStatus.NEW;
   #actions: ActionList_Type;
   #opMode = TgtSrvOpMode.FREE;
@@ -45,17 +45,18 @@ export default class TargetServer extends F42Base implements HasState_Interface 
     this.#initTs = Date.now();
     this.#metaId = metaId;
     this.#hostname = this.#validateHostname(hostname);
-    this.#srvObj = getEmpty_Server();
+    this.updateSrvObj();
     this.#actions = this.#initActions();
     this.#doneInit = true;
 
     this.allowedLogFunctions = [
       // "checkReceivedMsg",
       // "checkTargetActions",
-      "checkStatusActionable",
-      "changeOpMode",
-      "setStatusActive",
-      "setStatusPaused",
+      // "checkStatusActionable",
+      // "changeOpMode",
+      // "setStatusActive",
+      // "setStatusPaused",
+      // "validateHostname",
     ];
   }
 
@@ -82,7 +83,7 @@ export default class TargetServer extends F42Base implements HasState_Interface 
    * @throws {Error} Throws error on invalid hostname, or no root access on server
    */
   #validateHostname(hostname: string): string {
-    // const lo = this.getLo("initHostname");
+    // const lo = this.getLo("validateHostname", "hostname: %s", hostname);
     this.#testInit();
 
     // validate hostname
@@ -94,9 +95,6 @@ export default class TargetServer extends F42Base implements HasState_Interface 
     if (!this.ns.hasRootAccess(hostname)) {
       throw new Error("TargetServer set #initHostname: No root access on target server: " + hostname);
     }
-
-    // get Server object & save
-    this.updateSrvObj();
 
     return hostname;
   }
@@ -159,7 +157,7 @@ export default class TargetServer extends F42Base implements HasState_Interface 
   get state(): TSrvState_Interface {
     return {
       hydrated: true,
-      initTs: Date.now(),
+      initTs: this.#initTs,
       opMode: this.opModeStr,
       status: this.statusStr,
       totalHacked: this.ns.formatNumber(this.hackAction.totalAmt),
@@ -232,13 +230,13 @@ export default class TargetServer extends F42Base implements HasState_Interface 
    */
   updateSrvObj(): void {
     if (!this.#hostname) {
-      throw new Error("HackManager.updateSrvObj(): Invalid hostname");
+      throw new Error("TargetServer.updateSrvObj(): Invalid hostname");
     }
 
     this.#srvObj = this.ns.getServer(this.#hostname);
 
     if (!this.#srvObj || typeof this.#srvObj === "undefined") {
-      throw new Error("HackManager.updateSrvObj(): Failed to get Server object");
+      throw new Error("TargetServer.updateSrvObj(): Failed to get Server object");
     }
   }
 
@@ -510,16 +508,17 @@ export default class TargetServer extends F42Base implements HasState_Interface 
 
     // get a list of allowed action types based on op mode
     const allowedActions = this.allowedActionsForOpMode;
+    lo.g("Allowed actions: %s", JSON.stringify(allowedActions));
 
     if (activeAct !== false) {
-      if ((activeAct.type in allowedActions)) {
+      if ((allowedActions.includes(activeAct.type))) {
         // keep running allowed action
-        lo.g("Continuing %s",);
+        lo.g("Continuing %s", ActionType[activeAct.type]);
         activeAct.checkTargetNeedsAction();
       }
       else {
         // cancel action that's not allowed in this mode
-        lo.g("Cancelling %s, not allowed in this mode (%s)", activeAct.type, this.#opMode);
+        lo.g("Cancelling %s, not allowed in this mode (%s)", ActionType[activeAct.type], this.#opMode);
         activeAct.tryCancel();
       }
     }
@@ -528,9 +527,15 @@ export default class TargetServer extends F42Base implements HasState_Interface 
       for (const allowedActType of allowedActions) {
         lo.g("testing: %s", allowedActType);
         if (this.#actions[allowedActType].checkTargetNeedsAction()) {
-          lo.g("%s actioned 🎉", allowedActType);
+          lo.g("%s actioned 🎉", ActionType[allowedActType]);
           break;
         }
+      }
+
+      // no actions can run, pause
+      if(this.activeAction === false){
+        lo.g("No active actions, pausing ⏸️");
+        this.setStatusPaused(); 
       }
     }
   }

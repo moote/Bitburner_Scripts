@@ -9,7 +9,7 @@ import { ActionType, JobMsgStatus, MsgObjType } from '/f42/hack-man/classes/enum
 import { getEmpty_HMJobMsgResult } from '/f42/classes/helpers/empty-object-getters';
 
 const DEBUG_NO_SEND = false;
-const MSG_VERSION = 10;
+const MSG_VERSION = 11;
 
 export default class JobMessageWrapper extends F42Base implements HMJobMsgWrapper_Interface {
   #actionJob: ActionJob;
@@ -17,7 +17,7 @@ export default class JobMessageWrapper extends F42Base implements HMJobMsgWrappe
   portId: number;
   ver: number;
   status: JobMsgStatus;
-  
+
   target: string;
   actionType: ActionType;
   metaId: string;
@@ -29,7 +29,7 @@ export default class JobMessageWrapper extends F42Base implements HMJobMsgWrappe
   totThreads: number;
   estAmt: number;
   estTime: number;
-  
+
   result: HMJobMsgResult_Interface;
 
   constructor(actionJob: ActionJob) {
@@ -39,8 +39,8 @@ export default class JobMessageWrapper extends F42Base implements HMJobMsgWrappe
     this.msgId = "msgId_" + timestampAsBase62Str(Math.random());
     this.portId = PORT_POSTED_JOBS;
     this.status = JobMsgStatus.INIT;
-    this.target = "";
-    this.actionType = ActionType.GROW;
+    this.target = actionJob.tgtSrv.hostname;
+    this.actionType = actionJob.type
     this.metaId = actionJob.tgtSrv.metaId;
     this.jobId = actionJob.id;
     this.batchNum = 1;
@@ -50,7 +50,7 @@ export default class JobMessageWrapper extends F42Base implements HMJobMsgWrappe
     this.estAmt = 0;
     this.estTime = 0;
     this.result = getEmpty_HMJobMsgResult();
-  
+
     this.allowedLogFunctions = [
       // "setStatusSent",
       // "setStatusSent",
@@ -73,7 +73,7 @@ export default class JobMessageWrapper extends F42Base implements HMJobMsgWrappe
   // msg
   // ////////////////
 
-  get msgType():MsgObjType {
+  get msgType(): MsgObjType {
     return MsgObjType.JOB;
   }
 
@@ -201,7 +201,7 @@ export default class JobMessageWrapper extends F42Base implements HMJobMsgWrappe
     }
   }
 
-  get canSend():boolean {
+  get canSend(): boolean {
     return this.status === JobMsgStatus.INIT;
   }
 

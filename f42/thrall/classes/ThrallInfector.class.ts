@@ -1,19 +1,21 @@
 import { NS } from '@ns'
 import FeedbackRenderer from '/f42/classes/FeedbackRenderer';
 
-export const VERSION = 22;
+export const VERSION = 38;
 const ORDER_66_PORT = 66;
-const VERSION_FILE_PATH = "scripts/dynamic/v3/thrall/version_" + VERSION + ".txt";
+const VERSION_FILE_PATH = "f42/thrall/version_" + VERSION + ".txt";
 const PAYLOAD_FILES = [
-  "scripts/dynamic/v3/thrall/control.js",
-  "scripts/dynamic/v3/thrall/weaken_.js",
-  "scripts/dynamic/v3/thrall/grow_.js",
-  "scripts/dynamic/v3/thrall/hack_.js",
+  "f42/thrall/control.js",
+  "f42/thrall/weaken_.js",
+  "f42/thrall/grow_.js",
+  "f42/thrall/hack_.js",
+  "f42/thrall/classes/ThrallControl.class.js",
+  "f42/thrall/classes/interfaces.js",
   VERSION_FILE_PATH
 ];
 const HOME = "home";
-const FILTER_JOB_FILE = "v3/thrall/tmp";
-const FILTER_ALL_THRALL_FILE = "v3/thrall";
+const FILTER_JOB_FILE = "f42/thrall/tmp";
+const FILTER_ALL_THRALL_FILE = "f42/thrall";
 const FILTER_VERSION_FILE = "thrall/version_";
 const MATCH_PS_JOB_REGEX = /_\.js/g;
 const MATCH_PS_CONTROL_REGEX = /thrall\/control\.js/g;

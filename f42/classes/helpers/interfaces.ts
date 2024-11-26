@@ -20,6 +20,8 @@ export interface ActionJobList {
   [key: string]: ActionJob
 }
 
+export type SimpleColSpec_Type = [number, string][];
+
 // \\\\\\\\\\\\\\\\\
 // Messages
 // /////////////////
@@ -38,6 +40,20 @@ export interface MsgObj_Interface extends MsgObjData_Interface {
   push: () => boolean;
   serialize: () => MsgObjData_Interface;
   hydrate: (dataObj: MsgObjData_Interface) => void;
+}
+
+// STONK TRADE
+
+export interface StonkTradeMsg_Interface extends MsgObjData_Interface {
+  symbol: string;
+  opMode: string;
+  startBalance: number;
+  balance: number;
+  profit: number;
+  shares: number;
+  avPrice: number;
+  potProfit: number;
+  trades: number;
 }
 
 // GENERAL CFG SOCKET
@@ -67,9 +83,6 @@ export type CtrlMsgAllowed_Type = (
 
 export interface HMCtrlMsg_Interface extends MsgObjData_Interface {
   action: CtrlMsgAct,
-}
-
-export interface HMCtrlMsgPayload_Interface extends HMCtrlMsg_Interface {
   payload: CtrlMsgAllowed_Type,
 }
 
@@ -84,7 +97,7 @@ export interface HMJobMsgWrapper_Interface extends HMJobMsg_Interface {
   // jobId: string;
 
   // batchNum: number;
-  totBatches: number;
+  // totBatches: number;
   // threads: number;
   totThreads: number;
   estAmt: number;
@@ -101,6 +114,7 @@ export interface HMJobMsg_Interface extends MsgObjData_Interface {
   jobId: string;
 
   batchNum: number;
+  totBatches: number;
   threads: number;
 
   result: HMJobMsgResult_Interface;
@@ -143,6 +157,8 @@ export interface HMState_Interface {
     id: string;
     initTs: number;
   },
+  opMode: string,
+  tradeTgtState: string,
   targets: { [key: string]: TSrvState_Interface },
   gen: string;
 }
@@ -167,6 +183,7 @@ export interface TSrvState_Interface extends Hydratable_Interface {
 
 export interface JobState_Interface extends Hydratable_Interface {
   type: ActionType,
+  typeStr: string,
   estAmt: number,
   estTime: number,
   startTime: number,

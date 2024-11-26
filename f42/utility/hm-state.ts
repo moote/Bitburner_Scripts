@@ -1,5 +1,5 @@
 import Logger from '/f42/classes/Logger.class';
-import { getActivityVisStr } from '/f42/utility/utility-functions';
+import { getActivityVisStr, shortTimeFormat } from '/f42/utility/utility-functions';
 import { F42_ANSI_COL_HILI, F42_ANSI_COL_TXT } from "f42/classes/FeedbackRenderer"
 import { HMStateMsgReader } from '/f42/hack-man/classes/HMStateMsgReader.class';
 
@@ -56,19 +56,26 @@ export async function main(ns: NS): Promise<void> {
         maxHostLen = hostname.length;
       }
 
+      const srvObj = ns.getServer(hostname);
+      const percMaxMoney = ns.formatNumber((srvObj.moneyAvailable / srvObj.moneyMax * 100), 0);
+      const percMinSec = ns.formatNumber(
+        ((ns.getServerSecurityLevel(hostname) / ns.getServerMinSecurityLevel(hostname)) * 100) - 100,
+        0
+      );
+
       const rate = tgtData.raw.totalHacked / (Date.now() - tgtData.initTs);
 
       targets.push([
         hostname,
+        percMaxMoney + "%",
+        percMinSec + "%",
         tgtData.totalWeakened,
         tgtData.totalGrown,
         tgtData.totalHacked,
         ns.formatNumber(rate, 2) + "/s",
-        tgtData.compJobs,
-        "-",
-        tgtData.activeJob.type,
+        tgtData.activeJob.typeStr,
         fmatNumber(ns, tgtData.activeJob.estAmt),
-        timeFormat(ns, tgtData.activeJob.estTime),
+        shortTimeFormat(ns, tgtData.activeJob.estTime),
         calcRemaingTime(ns, tgtData.activeJob.startTime, tgtData.activeJob.estTime),
         tgtData.activeJob.msgSent,
         tgtData.activeJob.msgRcvd,
@@ -82,12 +89,12 @@ export async function main(ns: NS): Promise<void> {
 
     const colSpecs: [number, string, false | string, boolean, string][] = [
       [maxHostLen, "Target", false, false, 'Totals:'],
+      [5, "%max$", false, false, ""],
+      [5, "%sec", false, false, ""],
       [8, "Weak", false, false, ns.formatNumber(totals.weak, 2)],
-      [8, "Grow($)", false, false, ns.formatNumber(totals.weak, 2)],
+      [8, "Grow($)", false, false, ns.formatNumber(totals.grow, 2)],
       [8, "Hack($)", COL_HACK, false, ns.formatNumber(totals.hack, 2)],
-      [8, "Rate", COL_HACK, false, ns.formatNumber(totals.hack / hManElapsed, 2) + "/s"],
-      [4, "Jobs", false, false, ""],
-      [1, "-", false, false, ""],
+      [10, "Hack Rate", COL_HACK, false, ns.formatNumber(totals.hack / hManElapsed, 2) + "/s"],
       [4, "Type", false, true, ""],
       [8, "Est. Amt", false, true, ""],
       [6, "Time", false, false, ""],
@@ -139,7 +146,7 @@ export async function main(ns: NS): Promise<void> {
 
     for (const row of targets) {
       feedback.printf(
-        (row[7] == "hack" ? hackRowFormatStr : rowFormatStr),
+        (row[7] == "HACK" ? hackRowFormatStr : rowFormatStr),
         ...row
       );
     }
@@ -154,18 +161,6 @@ export async function main(ns: NS): Promise<void> {
   }
 }
 
-function timeFormat(ns: NS, time: number) {
-  if (!time) {
-    return "-";
-  }
-
-  const fmatTime = ns.tFormat(time);
-
-  return fmatTime.replace(/\s[a-z]+\s?/gm, (match) => {
-    return match.substr(1, 1);
-  });
-}
-
 function calcRemaingTime(ns: NS, startTime: number, estTime: number) {
   if (!startTime || !estTime) {
     return "-";
@@ -175,7 +170,7 @@ function calcRemaingTime(ns: NS, startTime: number, estTime: number) {
   const remTime = endTime - Date.now();
   // return ns.tFormat(remTime);
 
-  return timeFormat(ns, remTime);
+  return shortTimeFormat(ns, remTime);
 }
 
 function fmatNumber(ns: NS, num: number) {
@@ -185,33 +180,3 @@ function fmatNumber(ns: NS, num: number) {
 
   return ns.formatNumber(num, 2);
 }
-
-// {
-//   "meta": {
-//     "ver": 4,
-//     "sVer": 4,
-//     "id": "utHYOW5"
-//   },
-//   "targets": {
-//     "foodnstuff": {
-//       "totalHacked": "9.002m",
-//       "totalGrown": "2.392k",
-//       "totalWeakened": "328.325",
-//       "completedJobs": 22,
-//       "activeJob": {
-//         "type": "",
-//         "estAmt": "",
-//         "estTime": "",
-//         "msgSent": 0,
-//         "msgRcvd": 0,
-//         "amt": 0
-//       },
-//       "raw": {
-//         "totalHacked": 9001600,
-//         "totalGrown": 2391.555381379711,
-//         "totalWeakened": 328.32500000000005
-//       }
-//     }
-//   },
-//   "gen": "utI0tiC"
-// }

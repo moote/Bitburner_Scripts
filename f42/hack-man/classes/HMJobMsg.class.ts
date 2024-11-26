@@ -4,7 +4,6 @@ import { PORT_POSTED_JOBS } from "/f42/cfg/port-defs";
 import { ActionType, JobMsgStatus, MsgObjType } from "/f42/hack-man/classes/enums";
 import { HMJobMsg_Interface, HMJobMsgResult_Interface } from "/f42/classes/helpers/interfaces";
 import { getEmpty_HMJobMsgResult } from "/f42/classes/helpers/empty-object-getters";
-import { MsgQAcceptedMsg_Type } from "/f42/classes/Messaging/MsgQueueReader.class";
 
 /**
  * Job message for HackManager
@@ -17,6 +16,7 @@ export default class HMJobMsg extends MsgBase implements HMJobMsg_Interface {
   metaId: string;
   jobId: string;
   batchNum: number;
+  totBatches: number;
   threads: number;
   isAccepted: boolean;
   isReturned: boolean;
@@ -51,6 +51,7 @@ export default class HMJobMsg extends MsgBase implements HMJobMsg_Interface {
     this.metaId = "";
     this.jobId = "";
     this.batchNum = 0;
+    this.totBatches = 0;
     this.threads = 0;
     this.isAccepted = false;
     this.isReturned = false;
@@ -82,6 +83,7 @@ export default class HMJobMsg extends MsgBase implements HMJobMsg_Interface {
       metaId: this.metaId,
       jobId: this.jobId,
       batchNum: this.batchNum,
+      totBatches: this.totBatches,
       threads: this.threads,
       result: this.result,
     };
@@ -95,6 +97,7 @@ export default class HMJobMsg extends MsgBase implements HMJobMsg_Interface {
       || typeof rawObj.metaId === "undefined"
       || typeof rawObj.jobId === "undefined"
       || typeof rawObj.batchNum === "undefined"
+      || typeof rawObj.totBatches === "undefined"
       || typeof rawObj.threads === "undefined"
       || typeof rawObj.result === "undefined"
     ) {
@@ -107,6 +110,7 @@ export default class HMJobMsg extends MsgBase implements HMJobMsg_Interface {
       this.metaId = rawObj.metaId;
       this.jobId = rawObj.jobId;
       this.batchNum = rawObj.batchNum;
+      this.totBatches = rawObj.totBatches;
       this.threads = rawObj.threads;
       this.result = rawObj.result;
     }

@@ -3,9 +3,8 @@ import MsgQueue from "/f42/classes/Messaging/MsgQueue.class";
 import { Server } from "@ns";
 import { timestampAsBase62Str } from "/f42/utility/utility-functions";
 import { CtrlMsgAct, HMOpMode, MsgObjType, TgtSrvOpMode } from "/f42/hack-man/classes/enums";
-import { HMCtrlMsg_Interface, HMCtrlMsgPayload_Interface } from "/f42/classes/helpers/interfaces";
+import { CtrlMsgAllowed_Type, HMCtrlMsg_Interface } from "/f42/classes/helpers/interfaces";
 import { PORT_HM_CTRL } from "/f42/cfg/port-defs";
-import { getEmpty_HMCtrlMsg, getEmpty_Server } from "/f42/classes/helpers/empty-object-getters";
 
 const SRV_COMP_FILE_PATH = "/f42/utility/compromise-server.js";
 
@@ -16,6 +15,7 @@ export class HMCtrlMsg extends MsgBase implements HMCtrlMsg_Interface {
   static portId: number = PORT_HM_CTRL;
 
   #action: CtrlMsgAct;
+  #payload: CtrlMsgAllowed_Type;
 
   static preHydrate(ns: NS, rawObj: HMCtrlMsg_Interface): HMCtrlMsg | false {
 
@@ -23,32 +23,32 @@ export class HMCtrlMsg extends MsgBase implements HMCtrlMsg_Interface {
 
     switch (rawObj.action) {
       case CtrlMsgAct.ADD_TS:
-        newMsg = new HMCtrlMsg_ADD_TS(ns, getEmpty_Server());
+        newMsg = new HMCtrlMsg_ADD_TS(ns, rawObj.payload as Server);
         break;
       case CtrlMsgAct.RM_TS:
-        newMsg = new HMCtrlMsg_RM_TS(ns, "");
+        newMsg = new HMCtrlMsg_RM_TS(ns, rawObj.payload as string);
         break;
       case CtrlMsgAct.CLEAR_ACTIONS:
         newMsg = new HMCtrlMsg_CLEAR_ACTIONS(ns);
         break;
       case CtrlMsgAct.CHANGE_OP_MODE:
-        newMsg = new HMCtrlMsg_CHANGE_OP_MODE(ns, HMOpMode.HACK);
+        newMsg = new HMCtrlMsg_CHANGE_OP_MODE(ns, rawObj.payload as HMOpMode);
         break;
       case CtrlMsgAct.CHANGE_TT_MODE:
-        newMsg = new HMCtrlMsg_CHANGE_TT_MODE(ns, TgtSrvOpMode.MONEY_MAX);
+        newMsg = new HMCtrlMsg_CHANGE_TT_MODE(ns, rawObj.payload as TgtSrvOpMode.MONEY_MAX | TgtSrvOpMode.MONEY_MIN);
         break;
       default:
         throw new Error("HMCtrlMsg.preHydrate: Invalid rawObj.action: " + JSON.stringify(rawObj, null, 2));
     }
 
-    // do hydration & return
-    newMsg.hydrate(rawObj);
+    // return
     return newMsg;
   }
 
   constructor(
     ns: NS,
     action: CtrlMsgAct,
+    payload: CtrlMsgAllowed_Type,
   ) {
     super(
       timestampAsBase62Str(),
@@ -57,6 +57,7 @@ export class HMCtrlMsg extends MsgBase implements HMCtrlMsg_Interface {
     );
 
     this.#action = action;
+    this.#payload = payload;
   }
 
   /**
@@ -74,34 +75,40 @@ export class HMCtrlMsg extends MsgBase implements HMCtrlMsg_Interface {
     return this.#action;
   }
 
+  get payload(): CtrlMsgAllowed_Type {
+    return this.#payload;
+  }
+
   serialize(): HMCtrlMsg_Interface {
     // return data including any inherited
     return {
       ...super.serialize(),
-      msgType: this.msgType,
       action: this.action,
+      payload: this.payload,
     };
   }
 
-  hydrate(rawObj: HMCtrlMsg_Interface): void {
-    if (typeof rawObj.action === "undefined") {
-      throw new Error("CtrlMsg.hydrate: Invalid data: " + JSON.stringify(rawObj, null, 2));
-    }
-    else {
-      this.#action = rawObj.action;
-    }
+  // hydrate(rawObj: HMCtrlMsg_Interface): void {
+  //   if (
+  //     typeof rawObj.action === "undefined"
+  //     || typeof rawObj.payload === "undefined"
+  //   ) {
+  //     throw new Error("CtrlMsg.hydrate: Invalid data: " + JSON.stringify(rawObj, null, 2));
+  //   }
+  //   else {
+  //     this.#action = rawObj.action;
+  //     this.#payload = rawObj.payload;
+  //   }
 
-    // pass down for remainder of fields processing
-    super.hydrate(rawObj);
-  }
+  //   // pass down for remainder of fields processing
+  //   super.hydrate(rawObj);
+  // }
 }
 
 /**
  * Add server control message object for HackManager
  */
-export class HMCtrlMsg_ADD_TS extends HMCtrlMsg implements HMCtrlMsgPayload_Interface {
-  #payload: Server;
-
+export class HMCtrlMsg_ADD_TS extends HMCtrlMsg {
   /**
    * Factory helper function for push
    * 
@@ -126,22 +133,18 @@ export class HMCtrlMsg_ADD_TS extends HMCtrlMsg implements HMCtrlMsgPayload_Inte
   }
 
   constructor(ns: NS, payloadServer: Server) {
-    super(ns, CtrlMsgAct.ADD_TS);
-
-    this.#payload = payloadServer;
+    super(ns, CtrlMsgAct.ADD_TS, payloadServer);
   }
 
   get payload(): Server {
-    return this.#payload;
+    return super.payload as Server;
   }
 }
 
 /**
  * Remove server control message object for HackManager
  */
-export class HMCtrlMsg_RM_TS extends HMCtrlMsg implements HMCtrlMsgPayload_Interface {
-  #payload: string;
-
+export class HMCtrlMsg_RM_TS extends HMCtrlMsg {
   /**
    * Factory helper function for push
    * 
@@ -161,13 +164,11 @@ export class HMCtrlMsg_RM_TS extends HMCtrlMsg implements HMCtrlMsgPayload_Inter
   }
 
   constructor(ns: NS, payloadHostname: string) {
-    super(ns, CtrlMsgAct.RM_TS);
-
-    this.#payload = payloadHostname;
+    super(ns, CtrlMsgAct.RM_TS, payloadHostname);
   }
 
   get payload(): string {
-    return this.#payload;
+    return super.payload as string;
   }
 }
 
@@ -175,9 +176,7 @@ export class HMCtrlMsg_RM_TS extends HMCtrlMsg implements HMCtrlMsgPayload_Inter
  * Pause/Unpause control message object for HackManager
  * 
  */
-export class HMCtrlMsg_TT_PAUSE extends HMCtrlMsg implements HMCtrlMsgPayload_Interface {
-  #payload: boolean;
-
+export class HMCtrlMsg_TT_PAUSE extends HMCtrlMsg {
   /**
    * Factory helper function for push
    * 
@@ -191,13 +190,11 @@ export class HMCtrlMsg_TT_PAUSE extends HMCtrlMsg implements HMCtrlMsgPayload_In
   }
 
   constructor(ns: NS, doPause: boolean) {
-    super(ns, CtrlMsgAct.PAUSE);
-
-    this.#payload = doPause;
+    super(ns, CtrlMsgAct.PAUSE, doPause);
   }
 
   get payload(): boolean {
-    return this.#payload;
+    return super.payload as boolean;
   }
 }
 
@@ -205,7 +202,7 @@ export class HMCtrlMsg_TT_PAUSE extends HMCtrlMsg implements HMCtrlMsgPayload_In
  * Clear actions control message object for HackManager
  * @deprecated
  */
-export class HMCtrlMsg_CLEAR_ACTIONS extends HMCtrlMsg implements HMCtrlMsgPayload_Interface {
+export class HMCtrlMsg_CLEAR_ACTIONS extends HMCtrlMsg {
   /**
    * Factory helper function for push
    * 
@@ -219,7 +216,7 @@ export class HMCtrlMsg_CLEAR_ACTIONS extends HMCtrlMsg implements HMCtrlMsgPaylo
   }
 
   constructor(ns: NS) {
-    super(ns, CtrlMsgAct.CLEAR_ACTIONS);
+    super(ns, CtrlMsgAct.CLEAR_ACTIONS, true);
   }
 
   /** Always true */
@@ -231,9 +228,7 @@ export class HMCtrlMsg_CLEAR_ACTIONS extends HMCtrlMsg implements HMCtrlMsgPaylo
 /**
  * Switch operation mode to 'hack' | 'trade_target'
  */
-export class HMCtrlMsg_CHANGE_OP_MODE extends HMCtrlMsg implements HMCtrlMsgPayload_Interface {
-  #payload: HMOpMode;
-
+export class HMCtrlMsg_CHANGE_OP_MODE extends HMCtrlMsg {
   /**
    * Factory helper function for push
    * 
@@ -247,22 +242,18 @@ export class HMCtrlMsg_CHANGE_OP_MODE extends HMCtrlMsg implements HMCtrlMsgPayl
   }
 
   constructor(ns: NS, newOpMode: HMOpMode) {
-    super(ns, CtrlMsgAct.CHANGE_OP_MODE);
-
-    this.#payload = newOpMode;
+    super(ns, CtrlMsgAct.CHANGE_OP_MODE, newOpMode);
   }
 
   get payload(): HMOpMode {
-    return this.#payload;
+    return super.payload as HMOpMode
   }
 }
 
 /**
  * Sets the server action
  */
-export class HMCtrlMsg_CHANGE_TT_MODE extends HMCtrlMsg implements HMCtrlMsgPayload_Interface {
-  #payload: TgtSrvOpMode.MONEY_MAX | TgtSrvOpMode.MONEY_MIN;
-
+export class HMCtrlMsg_CHANGE_TT_MODE extends HMCtrlMsg {
   /**
    * Factory helper function for push
    * 
@@ -276,12 +267,10 @@ export class HMCtrlMsg_CHANGE_TT_MODE extends HMCtrlMsg implements HMCtrlMsgPayl
   }
 
   constructor(ns: NS, newMode: TgtSrvOpMode.MONEY_MAX | TgtSrvOpMode.MONEY_MIN) {
-    super(ns, CtrlMsgAct.CHANGE_TT_MODE);
-
-    this.#payload = newMode;
+    super(ns, CtrlMsgAct.CHANGE_TT_MODE, newMode);
   }
 
   get payload(): TgtSrvOpMode.MONEY_MAX | TgtSrvOpMode.MONEY_MIN {
-    return this.#payload;
+    return super.payload as (TgtSrvOpMode.MONEY_MAX | TgtSrvOpMode.MONEY_MIN);
   }
 }

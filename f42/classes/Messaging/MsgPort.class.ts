@@ -23,7 +23,7 @@ export default class MsgPort {
    */
   pushMessage(msgObj: MsgObjData_Interface): boolean {
     if (!this.validatePortType(msgObj.portId)) {
-      throw new Error(this.ns.sprintf("!! Not a valid message stack port: %d", msgObj.portId));
+      throw new Error(this.ns.sprintf("!! Not a valid message port: %d", msgObj.portId));
     }
 
     return this._doPushMessage(msgObj);
@@ -38,7 +38,13 @@ export default class MsgPort {
 
     // this.ns.tprintf("MsgPort._doPushMessage: msgObj.msgId: %s", JSON.stringify(msgObj, null, 2));
 
-    return mqPortHandle.tryWrite(msgObj);
+    const writeResult = mqPortHandle.tryWrite(msgObj);
+
+    // this.ns.tprintf(">>>>>>>>>>>>>>>>>>> %s", JSON.stringify(writeResult));
+    // this.ns.tprintf(">>>>>>>>>>>>>>>>>>> %s", JSON.stringify(writeResult));
+    // this.ns.tprintf(">>>>>>>>>>>>>>>>>>> %s", JSON.stringify(this.ns.readPort(7)));
+
+    return writeResult;
   }
 
   /**
@@ -49,7 +55,7 @@ export default class MsgPort {
    */
   popMessage(portId: number): MsgObjData_Interface | false {
     if (!this.validatePortType(portId)) {
-      throw new Error(this.ns.sprintf("!! Not a valid message stack port: %d", portId));
+      throw new Error(this.ns.sprintf("!! Not a valid message port: %d", portId));
     }
 
     const mqPortHandle = this.ns.getPortHandle(portId);
@@ -74,7 +80,7 @@ export default class MsgPort {
    */
   peekMessage(portId: number): MsgObjData_Interface | false {
     if (!this.validatePortType(portId)) {
-      throw new Error(this.ns.sprintf("!! Not a valid message stack port: %d", portId));
+      throw new Error(this.ns.sprintf("!! Not a valid message port: %d", portId));
     }
 
     const mqPortHandle = this.ns.getPortHandle(portId);

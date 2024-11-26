@@ -37,7 +37,7 @@ export default class GrowAction extends ActionBase implements ActionInterface {
       return this.tgtSrv.moneyAvailable < (this.tgtSrv.moneyMax * GROW_LEVEL_MIN_PERC);
     }
     else{
-      return this.tgtSrv.moneyAvailable < this.tgtSrv.moneyMax * GROW_LEVEL_MIN_PERC;
+      return this.tgtSrv.moneyAvailable < (this.tgtSrv.moneyMax * GROW_LEVEL_MIN_PERC);
     }
   }
 

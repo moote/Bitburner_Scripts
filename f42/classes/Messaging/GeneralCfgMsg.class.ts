@@ -53,7 +53,7 @@ export default class GeneralCfgMsg extends MsgBase implements GeneralCfgMsg_Inte
   get msgType(): MsgObjType {
     return MsgObjType.GENERAL_CFG;
   }
-
+  
   get purchasedServers(): GeneralCfgMsgPSrv_Interface {
     return this.#purchasedServers;
   }

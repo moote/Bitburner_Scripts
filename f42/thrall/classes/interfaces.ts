@@ -1,7 +1,7 @@
 export interface ThrallJob {
     msgId: number,
     target: string,
-    actionType: string,
+    actionType: number,
     threads: number,
     result: {
         pid: number;

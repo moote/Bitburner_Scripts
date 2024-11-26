@@ -19,7 +19,7 @@ const HMO_SRV_V = 4;
 
 export default class HackManager extends F42Base {
   #meta!: HMMeta_Interface;
-  #tgtList!: {[key: string]: TargetServer};
+  #tgtList!: { [key: string]: TargetServer };
   #mqrCtrlMsgs!: HMCtrlMsgQReader;
   #mqrCompJobMsgs!: HMCompJobQReader;
 
@@ -66,14 +66,14 @@ export default class HackManager extends F42Base {
     // set logging restrictions
     // this.allowedLogFunctions = [];
     this.allowedLogFunctions = [
-      "chkCtrlMsgQueue",
+      // "chkCtrlMsgQueue",
       // "dqReceivedMessages",
       "addTgtSrv",
-      "deleteTgtSrv",
+      // "deleteTgtSrv",
       // "postTargetList",
       // "mainLoop",
-      "changeOpMode",
-      "changeTgtSrvOpMode",
+      // "changeOpMode",
+      // "changeTgtSrvOpMode",
     ];
     this.onlyVerboseLogs = true;
   }
@@ -96,8 +96,8 @@ export default class HackManager extends F42Base {
     };
 
     // init incoming msg queues
-    if(!this.#mqrCtrlMsgs) this.#mqrCtrlMsgs = new HMCtrlMsgQReader(this.ns);
-    if(!this.#mqrCompJobMsgs) this.#mqrCompJobMsgs = new HMCompJobQReader(this.ns);
+    if (!this.#mqrCtrlMsgs) this.#mqrCtrlMsgs = new HMCtrlMsgQReader(this.ns);
+    if (!this.#mqrCompJobMsgs) this.#mqrCompJobMsgs = new HMCompJobQReader(this.ns);
 
     // init empty target list
     this.#tgtList = {};
@@ -154,7 +154,7 @@ export default class HackManager extends F42Base {
         // throw new Error("STOP");
 
         if (tsMsg instanceof HMCtrlMsg_ADD_TS) {
-          lo.g("Add target server: %s", tsMsg.payload.hostname);
+          lo.g("Add target server: %s", JSON.stringify(tsMsg.payload, null, 2));
           // add ts
           this.#addTgtSrv(tsMsg.payload);
         }
@@ -186,7 +186,7 @@ export default class HackManager extends F42Base {
           throw new Error("!! HackManager.chkCtrlMsgQueue: Unknown message type: " + JSON.stringify(tsMsg, null, 2));
         }
       }
-      else{
+      else {
         // the q is polluted, not good
         throw new Error("!! Non HMCtrlMsg found on queue, bad 👎 : " + JSON.stringify(tsMsg, null, 2));
       }
@@ -213,7 +213,8 @@ export default class HackManager extends F42Base {
   }
 
   #tradeTargetCtrl(): void {
-    const lo = this.getLo("tradeTargetCtrl");
+    // const lo = this.getLo("tradeTargetCtrl");
+    this.getLo("tradeTargetCtrl");
 
     if (this.#opMode !== HMOpMode.TRADE_TGT) {
       throw new Error("HackManager.#tradeTargetCtrl: Can't call when not in 'trade target' op mode: this.#opMode: " + this.#opMode);
@@ -222,31 +223,13 @@ export default class HackManager extends F42Base {
     // update state
     this.#updateTradeTargetState();
 
-    // render details
-    // const fb: FeedbackRenderer = this.logger.feedback;
-    // fb.title = "Trade Target Mode";
-    // // this.ns.clearLog();
-    // fb.printTitle(false);
+    if (this.#tradeTgtSrv) {
+      // refresh server obj
+      this.#tradeTgtSrv.updateSrvObj();
 
-    // if(this.#tradeTgtSrv){
-    //   const srvObj = this.#tradeTgtSrv.srvObj;
-    //   fb.printHiLi("Target: %s", this.#tradeTgtSrv.hostname);
-    //   fb.printHiLi("Op Mode: %s", this.#tradeTgtSrv.opModeStr);
-    //   fb.printHiLi("Srv Status: %s", this.#tradeTgtSrv.statusStr);
-    //   fb.printHiLi("TT State: %s", HMTradeTargetState[this.#tradeTgtState]);
-    //   fb.printHiLi("*Tgt OpMode Status*: %s", this.#tradeTgtSrv.opModeStatus);
-    //   fb.print("Max money: ", this.ns.formatNumber(srvObj.moneyMax));
-    //   fb.print("Curr money: ", this.ns.formatNumber(srvObj.moneyMax));
-    //   fb.print("Base hack lev: ", this.ns.formatNumber(srvObj.baseDifficulty));
-    //   fb.print("Min hack lev: ", this.ns.formatNumber(srvObj.minDifficulty));
-    //   fb.print("Curr hack lev: ", this.ns.formatNumber(srvObj.hackDifficulty));
-    // }
-    // else{
-    //   fb.printSubTitle("Awaiting target...");
-    // }
-
-    // fb.printLineSeparator();
-    // fb.print(getActivityVisStr(this.ns, ">>>>"));
+      // see if target can be actioned
+      this.#tradeTgtSrv.checkStatusActionable();
+    }
   }
 
   /**
@@ -337,24 +320,24 @@ export default class HackManager extends F42Base {
   #changeOpMode(newMode: HMOpMode): void {
     const lo = this.getLo("changeOpMode");
 
-    if(this.#opMode === newMode){
+    if (this.#opMode === newMode) {
       lo.g("Already in requested mode: %s === %s", this.#opMode, newMode);
     }
-    else if(newMode === HMOpMode.HACK){
+    else if (newMode === HMOpMode.HACK) {
       // reset
       this.#init();
 
       // change mode
       this.#opMode = newMode;
     }
-    else if(newMode === HMOpMode.TRADE_TGT){
+    else if (newMode === HMOpMode.TRADE_TGT) {
       // reset
       this.#init();
 
       // change mode
       this.#opMode = newMode;
     }
-    else{
+    else {
       throw lo.gThrowErr("HackManager.#switchOpMode: Invalid OpMode requested! %s", newMode);
     }
   }
@@ -365,8 +348,8 @@ export default class HackManager extends F42Base {
 
   #changeTgtSrvOpMode(newMode: TgtSrvOpMode): void {
     const lo = this.getLo("changeTgtSrvOpMode", "newMode: %s", newMode);
-    if(this.#tradeTgtSrv){
-      switch(newMode){
+    if (this.#tradeTgtSrv) {
+      switch (newMode) {
         case TgtSrvOpMode.FREE:
           // can't change to this while a trade target
           lo.g("ERROR Can't change a trade target to TgtSrvOpMode.FREE");
@@ -383,19 +366,19 @@ export default class HackManager extends F42Base {
           throw new Error("changeTgtSrvOpMode: Invalid TgtSrvOpMode: %s" + newMode);
       }
     }
-    else{
+    else {
       // do nothing  
       lo.g("No target server: %s", this.#tradeTgtState);
     }
   }
 
   #updateTradeTargetState(): void {
-    if(!this.#tradeTgtSrv){
+    if (!this.#tradeTgtSrv) {
       this.#tradeTgtState = HMTradeTargetState.NO_TARGET;
       return;
     }
 
-    switch(this.#tradeTgtSrv.opModeStatus){
+    switch (this.#tradeTgtSrv.opModeStatus) {
       case TgtSrvOpModeStatus.PAUSED:
         this.#tradeTgtState = HMTradeTargetState.TARGET_AWAITING_ORDER;
         break;
@@ -403,18 +386,18 @@ export default class HackManager extends F42Base {
         this.#tradeTgtState = HMTradeTargetState.TARGET_AWAITING_ORDER;
         break;
       case TgtSrvOpModeStatus.IN_PROGRESS:
-        if(this.#tradeTgtSrv.opMode === TgtSrvOpMode.MONEY_MAX){
+        if (this.#tradeTgtSrv.opMode === TgtSrvOpMode.MONEY_MAX) {
           this.#tradeTgtState = HMTradeTargetState.TARGET_GROW_TO_MAX;
         }
-        else{
+        else {
           this.#tradeTgtState = HMTradeTargetState.TARGET_HACK_TO_MIN;
         }
         break;
       default: // TgtSrvOpModeStatus.DONE
-        if(this.#tradeTgtSrv.opMode === TgtSrvOpMode.MONEY_MAX){
+        if (this.#tradeTgtSrv.opMode === TgtSrvOpMode.MONEY_MAX) {
           this.#tradeTgtState = HMTradeTargetState.TARGET_AT_MAX;
         }
-        else{
+        else {
           this.#tradeTgtState = HMTradeTargetState.TARGET_AT_MIN;
         }
         break;
@@ -444,7 +427,7 @@ export default class HackManager extends F42Base {
     let tgtSrv: TargetServer | false = false;
 
     try {
-      if(this.#opMode === HMOpMode.TRADE_TGT){
+      if (this.#opMode === HMOpMode.TRADE_TGT) {
         tgtSrv = new TargetServer(
           this.logger,
           srvObj.hostname,
@@ -453,10 +436,10 @@ export default class HackManager extends F42Base {
           TgtSrvOpMode.MONEY_MAX
         );
       }
-      else{
+      else {
         tgtSrv = new TargetServer(this.logger, srvObj.hostname, this.#meta.id);
       }
-      
+
     }
     catch (e) {
       // either invalid hostname, or no root; see error
@@ -471,7 +454,7 @@ export default class HackManager extends F42Base {
     this.#postTargetList();
 
     // if in trade target mode, then link
-    if(this.#opMode === HMOpMode.TRADE_TGT){
+    if (this.#opMode === HMOpMode.TRADE_TGT) {
       this.#tradeTgtSrv = tgtSrv;
       this.#updateTradeTargetState();
     }
@@ -510,10 +493,10 @@ export default class HackManager extends F42Base {
    */
   #deleteTgtSrv(hostname: string): void {
     const lo = this.getLo("deleteTgtSrv", "hostname: %s", hostname);
-    
+
     if (hostname in this.#tgtList) {
       // if in trade target mode, then unlink
-      if(this.#opMode === HMOpMode.TRADE_TGT){
+      if (this.#opMode === HMOpMode.TRADE_TGT) {
         this.#tradeTgtSrv = undefined;
         this.#updateTradeTargetState();
       }
@@ -538,6 +521,8 @@ export default class HackManager extends F42Base {
 
     const state: HMState_Interface = {
       meta: this.#meta,
+      opMode: HMOpMode[this.#opMode],
+      tradeTgtState: HMTradeTargetState[this.#tradeTgtState],
       targets: {},
       gen: timestampAsBase62Str()
     };

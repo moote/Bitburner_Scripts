@@ -29,7 +29,12 @@ export default class HackAction extends ActionBase implements ActionInterface {
    * 
    */
   shouldTriggerAction(): boolean {
-    return true;
+    if(this.tgtSrv.moneyAvailable > 0){
+      return true;
+    }
+    else{
+      return false;
+    }
   }
 
   targetAnalyse(): void {
@@ -45,7 +50,7 @@ export default class HackAction extends ActionBase implements ActionInterface {
     }
     else{
       // hack max when in trade target mode
-      currJob.estAmt = this.tgtSrv.moneyMax;
+      currJob.estAmt = this.tgtSrv.moneyAvailable;
     }
 
     try {

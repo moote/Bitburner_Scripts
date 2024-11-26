@@ -69,3 +69,15 @@ export function getRandomNumberInRange(min: number, max: number): number {
 export function getActivityVisStr(ns: NS, prefix = ""): string {
   return ns.sprintf("%s%s", prefix, ((Math.floor(Date.now() / 1000) % 2) == 0 ? "<>" : "><"));
 }
+
+export function shortTimeFormat(ns: NS, time: number): string {
+  if (!time) {
+    return "-";
+  }
+
+  const fmatTime = ns.tFormat(time);
+
+  return fmatTime.replace(/\s[a-z]+\s?/gm, (match) => {
+    return match.substr(1, 1);
+  });
+}

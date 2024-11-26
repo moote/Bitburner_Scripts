@@ -3,9 +3,9 @@ import Logger from "/f42/classes/Logger.class";
 import { HMCtrlMsg_ADD_TS } from "/f42/hack-man/classes/HMCtrlMsg.class";
 // import F42ClFlagDef from "/f42/classes/f42-cl-flag-def-class";
 
-const F42_HM_DEBUG = true;
+const F42_HM_DEBUG = false;
 const F42_HM_DEBUG_TARGET: string[] = [
-  "foodnstuff",
+  // "foodnstuff",
   // "nectar-net",
   // "sigma-cosmetics",
   // "joesguns",
@@ -25,7 +25,7 @@ const F42_HM_DEBUG_TARGET: string[] = [
 export async function main(ns: NS): Promise<void> {
   const scriptTitle = "HackManager:V6";
   const scriptDescription = "Manages automated hacking";
-  const logger = new Logger(ns, false, false, true, scriptTitle, true);
+  const logger = new Logger(ns, true, false, true, scriptTitle, true);
   const feedback = logger.initFeedback(scriptTitle, scriptDescription);
 
   // help requested / flag errors

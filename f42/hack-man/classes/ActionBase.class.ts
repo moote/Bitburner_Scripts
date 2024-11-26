@@ -39,6 +39,7 @@ export default class ActionBase extends F42Base implements ActionInterface, HasS
     this.#doneInit = true;
 
     this.allowedLogFunctions = [
+      "updateActionTotalAmt",
       // "setStatusNoJob",
       // "shouldTriggerAction",
       // "checkReceivedMsg",
@@ -272,6 +273,12 @@ export default class ActionBase extends F42Base implements ActionInterface, HasS
   }
 
   updateActionTotalAmt(jobAmt: number): void {
+    const lo = this.getLo("updateActionTotalAmt");
+    lo.g(
+      "%s >> %s",
+      ActionType[this.#type],
+      this.ns.formatNumber(jobAmt)
+    );
     this.#totalAmt += jobAmt;
   }
 

@@ -32,7 +32,7 @@ export default class ThrallControl {
     this.hostname = this.ns.getHostname();
 
     if (this.hostname == "home") {
-      // this.ns.tail();
+      this.ns.tail();
       this.ns.setTitle(this.logName);
       this.ramHeadroom = 128;
     }
@@ -63,7 +63,7 @@ export default class ThrallControl {
       // get job action data
       jobAction = this.getJobAction(potentialJob);
 
-      if (jobAction != false) {
+      if (jobAction !== false) {
         if (this.checkCanRun(jobAction.ram, potentialJob.threads)) {
           this.log("RUN(%s): %s >> %s", potentialJob.msgId, potentialJob.target, potentialJob.actionType);
 
@@ -102,19 +102,19 @@ export default class ThrallControl {
 
   getJobAction(potentialJob: ThrallJob): ThrallJobAction | false {
     switch (potentialJob.actionType) {
-      case "weak":
+      case 0:
         return {
           path: this.weakenScriptPath,
           ram: this.ns.getScriptRam(this.weakenScriptPath),
           startAmt: this.ns.getServerSecurityLevel(potentialJob.target),
         };
-      case "grow":
+      case 1:
         return {
           path: this.growScriptPath,
           ram: this.ns.getScriptRam(this.growScriptPath),
           startAmt: this.ns.getServerMoneyAvailable(potentialJob.target),
         };
-      case "hack":
+      case 2:
         return {
           path: this.hackScriptPath,
           ram: this.ns.getScriptRam(this.hackScriptPath),
@@ -209,7 +209,7 @@ export default class ThrallControl {
     return <ThrallJob>this.#readDataFromFile(this.getRunningJobFPath(jobPid));
   }
 
-  getCompJobFromFile(fpath: string) {
+  getCompJobFromFile(fpath: string): ThrallJob {
     return <ThrallJob>this.#readDataFromFile(fpath);
   }
 

@@ -7,6 +7,7 @@ import GeneralCfgMsg from '/f42/classes/Messaging/GeneralCfgMsg.class';
 interface ListCmpOpVars_Interface {
   cfgMsg: GeneralCfgMsg;
   onlyOwned: boolean;
+  minMoneyAvail: number;
   matchList: (string | number)[][];
   maxHostnameLength: number;
 }
@@ -21,6 +22,7 @@ export async function main(ns: NS): Promise<void> {
   const flags = feedback.flagValidator;
 
   flags.addBooleanFlag("o", "Only list purchased servers");
+  flags.addIntFlag("m", "Minmum money available on server; defaults to 1,000,000", false, 1000000);
 
   if (feedback.printHelpAndEnd()) {
     return;
@@ -38,6 +40,7 @@ export async function main(ns: NS): Promise<void> {
   const opVars: ListCmpOpVars_Interface = {
     cfgMsg: cfgMsg,
     onlyOwned: flags.getFlagBoolean("o"),
+    minMoneyAvail: flags.getFlagNumber("m"),
     matchList: [],
     maxHostnameLength: 0
   };
@@ -51,11 +54,13 @@ export async function main(ns: NS): Promise<void> {
   feedback.printf("- Bdoor: Backdoor installed");
 
   if (opVars.onlyOwned) {
-    feedback.printf("- All servers showm are owned");
+    feedback.printf("- All servers shown are owned");
   }
   else {
-    feedback.printf("- All servers showm are owned and/or have root access");
+    feedback.printf("- All servers shown are owned and/or have root access");
   }
+
+  feedback.printf("- Minimum money available: %s", ns.formatNumber(opVars.minMoneyAvail));
 
   feedback.printf("- Current RAM target: %s", opVars.cfgMsg.purchasedServers.ramTargetGb);
   feedback.printf("\n\n");
@@ -128,6 +133,10 @@ function scanAdjServers(feedback: FeedbackRenderer, baseServer: string, depthCnt
       }
       else if (!opVars.onlyOwned && (serverObj.purchasedByPlayer || serverObj.hasAdminRights)) {
         canShow = true;
+
+        if(serverObj.moneyMax < opVars.minMoneyAvail){
+          canShow = false;
+        }
       }
 
       if (canShow) {

@@ -1,6 +1,6 @@
 import F42Base from "/f42/classes/F42Base.class";
 import { timestampAsBase62Str } from "/f42/utility/utility-functions";
-import JobMessageWrapper, * as jMsg from "./JobMsgWrapper.class";
+import JobMessageWrapper from "./JobMsgWrapper.class";
 import { MsgErrorInvalidMsg, MsgErrorBadStatus, MsgErrorDuplicate } from "/f42/hack-man/classes/MsgException.class";
 import ActionBase from "/f42/hack-man/classes/ActionBase.class";
 import TargetServer from "/f42/hack-man/classes/TargetServer.class";
@@ -105,6 +105,14 @@ export default class ActionJob extends F42Base implements HasState_Interface {
     this.#jobEndTs = Date.now();
     this.#endAmt = this.#action.currTargetAmt;
     this.#status = ActJobStatus.COMPLETED;
+
+    // record amt on action; needed as jobs are ephemeral
+    if(this.#action.type === ActionType.GROW){
+      this.#action.updateActionTotalAmt(this.#endAmt - this.#startAmt);
+    }
+    else{
+      this.#action.updateActionTotalAmt(this.#startAmt - this.#endAmt);
+    }
 
     // update action state
     this.action.setStatusNoJob();
@@ -348,9 +356,6 @@ export default class ActionJob extends F42Base implements HasState_Interface {
     // inc job total
     this.#jobAmt += rcvdMsg.result.amt;
 
-    // record amt on action; needed as jobs are ephemeral
-    this.#action.updateActionTotalAmt(this.#jobAmt);
-
     // check if need to close
     if (this.#messagesRcvd == this.#batchCount) {
       // close messages
@@ -370,7 +375,8 @@ export default class ActionJob extends F42Base implements HasState_Interface {
   get state(): JobState_Interface {
     const state = getEmpty_JobState_Interface();
     state.hydrated = true;
-    state.type = this.type;
+    state.type =  this.type;
+    state.typeStr =  ActionType[this.type];
     state.estAmt = this.estAmt;
     state.estTime = this.estTime;
     state.startTime = this.#jobStartTs;

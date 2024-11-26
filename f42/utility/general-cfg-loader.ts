@@ -12,10 +12,10 @@ export function loadGeneralCfgSocket(ns: NS): void {
   const genCfg: GeneralCfgMsg_Interface = getEmpty_GeneralCfgMsg();
   genCfg.purchasedServers = {
     serverLimit: 100,
-    ramTargetGb: 262144,
+    ramTargetGb: 32,
     purchaseLoopDelayMS: 750,
     upgradeLoopDelayMS: 250,
-    debugMode: true,
+    debugMode: false,
   };
 
   // push to socket

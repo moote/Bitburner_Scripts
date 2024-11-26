@@ -2,7 +2,7 @@ import { HMCtrlMsg_ADD_TS, HMCtrlMsg_CHANGE_OP_MODE, HMCtrlMsg_CHANGE_TT_MODE, H
 import Logger from '/f42/classes/Logger.class';
 import { HMOpMode, TgtSrvOpMode } from '/f42/hack-man/classes/enums';
 
-const DEBUG_MODE = true;
+const DEBUG_MODE = false;
 
 /** @param {NS} ns */
 export async function main(ns: NS): Promise<void> {

@@ -7,6 +7,7 @@ export const F42_ANSI_COL_H2 = "\x1b[38;5;219m";
 export const F42_ANSI_COL_HILI = "\x1b[38;5;212m";
 export const F42_ANSI_COL_TXT = "\x1b[38;5;224m";
 export const F42_ANSI_COL_ERR = "\x1b[31m";
+export const F42_ANSI_COL_RESET = "\x1b[0m";
 
 /**
  * Utility class for writing script feeback massages to user
@@ -69,13 +70,13 @@ export default class FeedbackRenderer {
     }
   }
 
-  printSubTitle(msgTemplate: string, ...msgArgs: any[]): void {
+  printSubTitle(msgTemplate: string, ...msgArgs: unknown[]): void {
     this.printLineSeparator(F42_ANSI_COL_H2);
     this.#doFeedback(F42_ANSI_COL_H2 + msgTemplate, ...msgArgs);
     this.printLineSeparator(F42_ANSI_COL_H2);
   }
 
-  printHiLi(msgTemplate: string, ...msgArgs: any[]): void {
+  printHiLi(msgTemplate: string, ...msgArgs: unknown[]): void {
     this.#doFeedback(F42_ANSI_COL_HILI + msgTemplate, ...msgArgs);
   }
 
@@ -84,7 +85,7 @@ export default class FeedbackRenderer {
    * 
    * @param msgArgs
    */
-  print(...msgArgs: any[]): void {
+  print(...msgArgs: unknown[]): void {
     this.#doFeedback(F42_ANSI_COL_TXT + msgArgs.join(""));
   }
 
@@ -94,7 +95,7 @@ export default class FeedbackRenderer {
    * @param format
    * @param msgArgs
    */
-  printf(format: string, ...msgArgs: any[]): void {
+  printf(format: string, ...msgArgs: unknown[]): void {
     this.#doFeedback(F42_ANSI_COL_TXT + format, ...msgArgs);
   }
 
@@ -115,7 +116,7 @@ export default class FeedbackRenderer {
   /**
    * Error render function
    */
-  printErr(errorMsg: string, ...errorMsgArgs: any[]): void {
+  printErr(errorMsg: string, ...errorMsgArgs: unknown[]): void {
     this.#doFeedback(F42_ANSI_COL_ERR + errorMsg, ...errorMsgArgs);
   }
 
@@ -149,16 +150,16 @@ export default class FeedbackRenderer {
     }
   }
 
-  addUserDefError(flag: string, errorMsg: string, ...errArgs: any[]): void {
+  addUserDefError(flag: string, errorMsg: string, ...errArgs: unknown[]): void {
     this.#flagValidator.addError(flag, this.ns.sprintf(errorMsg, ...errArgs));
   }
 
-  addUserDefErrorAndEnd(flag: string, errorMsg: string, ...errArgs: any[]): void {
+  addUserDefErrorAndEnd(flag: string, errorMsg: string, ...errArgs: unknown[]): void {
     this.addUserDefError(flag, errorMsg, ...errArgs);
     this.printHelpAndEnd();
   }
 
-  #doFeedback(msgTemplate: string, ...msgArgs: any[]): void {
+  #doFeedback(msgTemplate: string, ...msgArgs: unknown[]): void {
     // this.#logger.doFeedback(this.#feedbackKey, "%s %s %d", "forty", "two", 42);
     this.#logger.doFeedback(this.#feedbackKey, msgTemplate, ...msgArgs);
   }

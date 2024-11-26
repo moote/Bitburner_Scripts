@@ -71,7 +71,7 @@ export default class WeakenAction extends ActionBase implements ActionInterface 
     return this.#hackDifficultyDiff > weakenDiffMax;
     }
     else{
-      return this.ns.getServerBaseSecurityLevel(this.target) > this.ns.getServerMinSecurityLevel(this.target);
+      return this.ns.getServerSecurityLevel(this.target) > this.ns.getServerMinSecurityLevel(this.target);
     }
   }
 

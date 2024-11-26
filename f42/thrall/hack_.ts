@@ -1,11 +1,11 @@
-import { ThrallActionResult } from "./classes/interfaces";
+import { ThrallActionResult } from "/f42/thrall/classes/interfaces";
 
 export const RESULT_FLAG = "-THRALL-result";
 export const JOB_RESULT_PATH = "f42/thrall/tmp/%d" + RESULT_FLAG + ".txt";
 
 /** @param {NS} ns */
 export async function main(ns: NS): Promise<void> {
-  const amount = await ns.hack(JSON.stringify(ns.args[0]));
+  const amount = await ns.hack(ns.args[0] as string, { stock: false });
   saveActionResult(ns, "hack", amount);
 }
 

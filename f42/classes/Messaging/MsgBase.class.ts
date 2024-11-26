@@ -53,7 +53,7 @@ export default class MsgBase implements MsgObj_Interface {
       || typeof rawObj.portId === "undefined"
       || typeof rawObj.msgType === "undefined"
     ){
-      throw new Error("MsgBase.unserialize: Invalid data: " + JSON.stringify(rawObj, null, 2));
+      throw new Error("MsgBase.hydrate: Invalid data: " + JSON.stringify(rawObj, null, 2));
     }
     else{
       this.#msgId = rawObj.msgId;

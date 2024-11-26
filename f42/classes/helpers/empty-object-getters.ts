@@ -1,8 +1,9 @@
 import { Server } from "@ns";
-import { ActionType, CtrlMsgAct, MsgObjType } from "/f42/hack-man/classes/enums";
-import { GeneralCfgMsg_Interface, HMCtrlMsg_Interface, HMJobMsgResult_Interface, HMState_Interface, JobState_Interface, TSrvState_Interface } from "/f42/classes/helpers/interfaces";
-import { PORT_GENERAL_CFG, PORT_HM_CTRL } from "/f42/cfg/port-defs";
+import { ActionType, CtrlMsgAct, HMOpMode, HMTradeTargetState, MsgObjType } from "/f42/hack-man/classes/enums";
+import { GeneralCfgMsg_Interface, HMCtrlMsg_Interface, HMJobMsgResult_Interface, HMState_Interface, JobState_Interface, StonkTradeMsg_Interface, TSrvState_Interface } from "/f42/classes/helpers/interfaces";
+import { PORT_GENERAL_CFG, PORT_HM_CTRL, PORT_STONK_TRADE } from "/f42/cfg/port-defs";
 import { timestampAsBase62Str } from "/f42/utility/utility-functions";
+import { TraderOpMode } from "/f42/stonks/classes/stats/interfaces";
 
 // \\\\\\\\\\\\\\\\\
 // Server
@@ -18,7 +19,7 @@ export function getEmpty_Server(): Server {
     httpPortOpen: false,
     sqlPortOpen: false,
     hasAdminRights: false,
-    cpuCores: 0,
+    cpuCores: 999,
     isConnectedTo: false,
     ramUsed: 0,
     maxRam: 0,
@@ -39,6 +40,8 @@ export function getEmpty_HMState_Interface(): HMState_Interface {
       id: "",
       initTs: 0,
     },
+    opMode: HMOpMode[HMOpMode.HACK],
+    tradeTgtState: HMTradeTargetState[HMTradeTargetState.NO_TARGET],
     targets: {},
     gen: "",
   };
@@ -69,6 +72,7 @@ export function getEmpty_JobState_Interface(): JobState_Interface {
   return {
     hydrated: false,
     type: ActionType.GROW,
+    typeStr: ActionType[ActionType.GROW],
     estAmt: 0,
     estTime: 0,
     startTime: 0,
@@ -97,9 +101,10 @@ export function getEmpty_HMJobMsgResult(): HMJobMsgResult_Interface {
 export function getEmpty_HMCtrlMsg(): HMCtrlMsg_Interface {
   return {
     action: CtrlMsgAct.PAUSE,
+    payload: "",
     msgId: timestampAsBase62Str(),
     portId: PORT_HM_CTRL,
-    msgType: MsgObjType.BASE,
+    msgType: MsgObjType.CTRL,
   };
 }
 
@@ -115,5 +120,22 @@ export function getEmpty_GeneralCfgMsg(): GeneralCfgMsg_Interface {
       upgradeLoopDelayMS: 2001,
       debugMode: false,
     }
+  };
+}
+
+export function getEmpty_StonkTradeMsg(): StonkTradeMsg_Interface {
+  return {
+    msgId: timestampAsBase62Str(),
+    portId: PORT_STONK_TRADE,
+    msgType: MsgObjType.STONK_TRADE,
+    symbol: "FAB42",
+    opMode: TraderOpMode[TraderOpMode.TEST],
+    startBalance: 0,
+    balance: 0,
+    profit: 0,
+    shares: 0,
+    avPrice: 0,
+    potProfit: 0,
+    trades: 0,
   };
 }

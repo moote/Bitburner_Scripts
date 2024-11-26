@@ -147,7 +147,7 @@ export default class Logger {
    * 
    * @return bool True if log written, false if suppressed (this.#writeLog ===  false)
    */
-  log(msgTemplate: string, ...msgArgs: any[]): boolean {
+  log(msgTemplate: string, ...msgArgs: unknown[]): boolean {
     if (!this.#writeLog) return false;
 
     this.#doLog(msgTemplate, ...msgArgs);
@@ -159,7 +159,7 @@ export default class Logger {
    * 
    * @return bool True if log written, false if suppressed (this.#writeLog ===  false)
    */
-  logError(errorMsg: string, ...errorMsgArgs: any[]): boolean {
+  logError(errorMsg: string, ...errorMsgArgs: unknown[]): boolean {
     if (!this.#writeLog) return false;
 
     this.#doLog("ERROR " + errorMsg, ...errorMsgArgs);
@@ -170,7 +170,7 @@ export default class Logger {
    * Feeback function for feedback object; should only be called
    * by feedback object!!
    */
-  doFeedback(feedbackKey: string, msgTemplate: string, ...msgArgs: any[]): boolean {
+  doFeedback(feedbackKey: string, msgTemplate: string, ...msgArgs: unknown[]): boolean {
     if (feedbackKey !== this.#feedbackKey) {
       const errMsg = "!! Illegal call of Logger.doFeedback(): can only be called from the associated feedback object !!";
       this.#ns.print(errMsg);
@@ -191,7 +191,7 @@ export default class Logger {
   /**
    * Core logging function
    */
-  #doLog(msgTemplate: string, ...msgArgs: any[]): void {
+  #doLog(msgTemplate: string, ...msgArgs: unknown[]): void {
     this.doFirstCall();
 
     if (Logger_DEBUG) {

@@ -82,7 +82,5 @@ function renderServer(feedback: FeedbackRenderer, serverObj: Server) {
   feedback.printf("   - Has backdoor: %s", serverObj.backdoorInstalled);
   feedback.printf("   - Org Name: %s", serverObj.organizationName);
   feedback.printf("   - Player owned: %s", serverObj.purchasedByPlayer);
-  feedback.printf("   - Undefined: %s", undef);
-  // feedback.printf("   - xxxx: %s", serverObj.xxx);
   feedback.printEnd();
 }

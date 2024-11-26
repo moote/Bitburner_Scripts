@@ -1,6 +1,5 @@
 import MsgQueueReader from '/f42/classes/Messaging/MsgQueueReader.class';
 import Logger from '/f42/classes/Logger.class';
-import { timestampAsBase62Str } from '/f42/utility/utility-functions';
 // import FeedbackRenderer from '/f42/classes/FeedbackRenderer';
 
 /** @param {NS} ns */

@@ -1,19 +1,17 @@
 import { PORT_HM_CTRL } from "/f42/cfg/port-defs";
-import { HMCtrlMsg_Interface } from "/f42/classes/helpers/interfaces";
 import MsgQueueReader, { MsgQAcceptedMsg_Type } from "/f42/classes/Messaging/MsgQueueReader.class";
-import { MsgObjType } from "/f42/hack-man/classes/enums";
 import { HMCtrlMsg } from "/f42/hack-man/classes/HMCtrlMsg.class";
 
 export class HMCtrlMsgQReader extends MsgQueueReader {
-  constructor(ns: NS){
+  constructor(ns: NS) {
     super(ns, PORT_HM_CTRL);
   }
 
-  #validateMsg(msg: MsgQAcceptedMsg_Type | boolean): HMCtrlMsg | false {
-    if((typeof msg !== "boolean") && this.isHMCtrlMsg_Interface(msg)){
+  #validateMsg(msg: MsgQAcceptedMsg_Type | false): HMCtrlMsg | false {
+    if (msg !== false && this.isHMCtrlMsg_Interface(msg)) {
       return HMCtrlMsg.preHydrate(this.ns, msg);
     }
-    else{
+    else {
       return false;
     }
   }
