@@ -18,6 +18,7 @@ export interface ThrallJobAction {
     path: string,
     ram: number,
     startAmt: number,
+    type: string,
 }
 
 export interface ThrallActionResult {

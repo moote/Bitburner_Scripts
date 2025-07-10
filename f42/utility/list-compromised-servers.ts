@@ -134,7 +134,7 @@ function scanAdjServers(feedback: FeedbackRenderer, baseServer: string, depthCnt
       else if (!opVars.onlyOwned && (serverObj.purchasedByPlayer || serverObj.hasAdminRights)) {
         canShow = true;
 
-        if(serverObj.moneyMax < opVars.minMoneyAvail){
+        if(serverObj.moneyMax! < opVars.minMoneyAvail){
           canShow = false;
         }
       }

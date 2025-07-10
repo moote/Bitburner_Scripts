@@ -5,7 +5,7 @@ export const JOB_RESULT_PATH = "f42/thrall/tmp/%d" + RESULT_FLAG + ".txt";
 
 /** @param {NS} ns */
 export async function main(ns: NS): Promise<void> {
-  const amount = await ns.hack(ns.args[0] as string, { stock: false });
+  const amount = await ns.hack(ns.args[0] as string, { stock: ns.args[1] == 1 ? true : false });
   saveActionResult(ns, "hack", amount);
 }
 

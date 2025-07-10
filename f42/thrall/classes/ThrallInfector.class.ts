@@ -1,7 +1,7 @@
 import { NS } from '@ns'
 import FeedbackRenderer from '/f42/classes/FeedbackRenderer';
 
-export const VERSION = 38;
+export const VERSION = 40;
 const ORDER_66_PORT = 66;
 const VERSION_FILE_PATH = "f42/thrall/version_" + VERSION + ".txt";
 const PAYLOAD_FILES = [

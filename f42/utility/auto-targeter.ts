@@ -42,7 +42,7 @@ export async function main(ns: NS): Promise<void>{
     userMaxHackPorts: 0,
     reqHackLevel: 0,
     reqHackPorts: 0,
-    minSrvMoney: 10000000000,
+    minSrvMoney: 2000000000,
     targetList: [],
     dBugStr: [],
   };

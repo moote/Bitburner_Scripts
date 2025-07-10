@@ -59,7 +59,7 @@ export default class SimpleTrader extends F42Base {
     // ask
     const currTrendVal = this.stonkSym.getPeriodTrend(StonkPeriod.ONE_MIN, positionType);
     let currTrendState = TrendState.UNKNOWN;
-
+    
     if (currTrendVal >= 1) {
       currTrendState = TrendState.RISING;
 

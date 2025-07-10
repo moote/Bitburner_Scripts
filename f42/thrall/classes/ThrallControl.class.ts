@@ -7,6 +7,8 @@ export const COMP_FLAG = "-THRALL-comp";
 export const RUNNING_JOB_PATH = "f42/thrall/tmp/%d" + JOB_FLAG + ".txt";
 export const COMPLETED_JOB_PATH = "f42/thrall/tmp/%d" + COMP_FLAG + ".txt";
 
+const STOCK_AFFECT_CYCLE_MS = 1000 * 60 * 30; // 30 mins
+
 export default class ThrallControl {
   ns: NS;
   logName: string;
@@ -18,6 +20,9 @@ export default class ThrallControl {
   weakenScriptPath = "f42/thrall/weaken_.js";
   growScriptPath = "f42/thrall/grow_.js";
   hackScriptPath = "f42/thrall/hack_.js";
+
+  sacStartTs = 0;
+  sacMode: 0 | 1 = 0; // 0: hack/weaken affects stock grow does not; 1 grow affects stock, hack/weaken do not
 
   /**
    * 
@@ -39,12 +44,26 @@ export default class ThrallControl {
 
     this.ns.disableLog("ALL");
     // ns.enableLog("sleep");
+
+    this.sacStartTs = Date.now();
+    this.sacMode = 0;
+  }
+
+  testSacTimer(): void {
+    const now = Date.now();
+
+    if(now - this.sacStartTs >= STOCK_AFFECT_CYCLE_MS){
+      this.sacStartTs = now;
+      this.sacMode = this.sacMode === 0 ? 1 : 0
+    }
   }
 
   /**
    * Message dq and parse
    */
   getPotentialJob(): void {
+    this.testSacTimer();
+
     let potentialJob: ThrallJob | false;
     let jobAction: ThrallJobAction | false;
     let acceptedJob = false;
@@ -107,18 +126,21 @@ export default class ThrallControl {
           path: this.weakenScriptPath,
           ram: this.ns.getScriptRam(this.weakenScriptPath),
           startAmt: this.ns.getServerSecurityLevel(potentialJob.target),
+          type: "weak",
         };
       case 1:
         return {
           path: this.growScriptPath,
           ram: this.ns.getScriptRam(this.growScriptPath),
           startAmt: this.ns.getServerMoneyAvailable(potentialJob.target),
+          type: "grow",
         };
       case 2:
         return {
           path: this.hackScriptPath,
           ram: this.ns.getScriptRam(this.hackScriptPath),
           startAmt: this.ns.getServerMoneyAvailable(potentialJob.target),
+          type: "hack",
         };
       default:
         return false;
@@ -126,11 +148,25 @@ export default class ThrallControl {
   }
 
   runJob(potentialJob: ThrallJob, jobAction: ThrallJobAction): number {
+    let jobSac = 0;
+
+    // 0: weaken/hack affects stock grow does not; 1 grow affects stock, hack/weaken do not
+    switch (jobAction.type) {
+      case "weak":
+      case "hack":
+        jobSac = this.sacMode === 0 ? 1 : 0;
+        break;
+      case "grow":
+        jobSac = this.sacMode === 0 ? 0 : 1;
+        break;
+    }
+
     // start job
     const jobPid = this.ns.run(
       jobAction.path,
       potentialJob.threads,
-      potentialJob.target
+      potentialJob.target,
+      jobSac
     );
 
     if (!jobPid) {
@@ -295,7 +331,7 @@ export default class ThrallControl {
   getPidFromFPath(fPath: string): number {
     const pid = fPath.split("-")[0].split("/").pop();
 
-    if(typeof pid === "undefined"){
+    if (typeof pid === "undefined") {
       throw new Error("Could not read pid");
     }
 

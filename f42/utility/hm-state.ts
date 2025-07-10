@@ -4,7 +4,7 @@ import { F42_ANSI_COL_HILI, F42_ANSI_COL_TXT } from "f42/classes/FeedbackRendere
 import { HMStateMsgReader } from '/f42/hack-man/classes/HMStateMsgReader.class';
 
 /** @param {NS} ns */
-export async function main(ns: NS): Promise<void> {
+  export async function main(ns: NS): Promise<void> {
   const scriptTitle = "HackManager:State";
   const scriptDescription = "Renders content of HM state port";
   const logger = new Logger(ns, false, false, true, scriptTitle, true);
@@ -56,12 +56,16 @@ export async function main(ns: NS): Promise<void> {
         maxHostLen = hostname.length;
       }
 
+      ns.stock.getOrganization()
+
       const srvObj = ns.getServer(hostname);
-      const percMaxMoney = ns.formatNumber((srvObj.moneyAvailable / srvObj.moneyMax * 100), 0);
+      const percMaxMoney = ns.formatNumber((srvObj.moneyAvailable! / srvObj.moneyMax! * 100), 0);
       const percMinSec = ns.formatNumber(
         ((ns.getServerSecurityLevel(hostname) / ns.getServerMinSecurityLevel(hostname)) * 100) - 100,
         0
       );
+
+      srvObj.
 
       const rate = tgtData.raw.totalHacked / (Date.now() - tgtData.initTs);
 
