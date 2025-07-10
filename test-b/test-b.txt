@@ -1,3 +1,0 @@
-### Just a test file (B)
-
-- testing branching and prs
